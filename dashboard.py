@@ -1,496 +1,881 @@
 """
-Advanced web dashboard for sentiment analysis system
-Real-time monitoring, analytics visualization, and system management
+The One Dashboard to Rule Them All
 """
 
-from flask import Flask, render_template, jsonify, request, send_file
+from flask import Flask, render_template_string, jsonify, request
 import json
-import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
-import threading
-import time
+from typing import Dict, Any
+import random
+import os
 
-# Import our modules
-from nlp_engine import NLPEngine
-from analytics import SentimentAnalytics
-from database import DatabaseManager
-from monitoring import SystemMonitor, PerformanceTracker
+# Import our core modules
+from database_manager import db_manager
+from ui_components import ui_generator
+from config import Config
+from nlp_engine import SentimentAnalyzer
+from video_metadata import VideoMetadataExtractor
 
 app = Flask(__name__)
-app.secret_key = "sentiment_analysis_dashboard_2025"
+app.config['SECRET_KEY'] = Config.SECRET_KEY
 
 # Initialize components
-nlp_engine = NLPEngine()
-analytics_engine = SentimentAnalytics()
-db_manager = DatabaseManager()
-system_monitor = SystemMonitor()
-performance_tracker = PerformanceTracker(system_monitor)
+sentiment_analyzer = SentimentAnalyzer()
+video_metadata_extractor = VideoMetadataExtractor()
 
-# Start monitoring
-system_monitor.start_monitoring(interval=30)
+# Sample data for fallback
+SAMPLE_ANALYSES = [
+    {
+        'content': 'Revolutionary AI breakthrough announced at tech conference',
+        'source': 'tech_news',
+        'sentiment': 'positive',
+        'confidence': 0.92,
+        'timestamp': datetime.now().isoformat()
+    },
+    {
+        'content': 'New sustainable energy solution shows promising results',
+        'source': 'science_news',
+        'sentiment': 'positive',
+        'confidence': 0.87,
+        'timestamp': datetime.now().isoformat()
+    },
+    {
+        'content': 'Market volatility creates uncertainty for investors',
+        'source': 'finance_news',
+        'sentiment': 'negative',
+        'confidence': 0.78,
+        'timestamp': datetime.now().isoformat()
+    },
+    {
+        'content': 'Standard quarterly earnings report released',
+        'source': 'business_news',
+        'sentiment': 'neutral',
+        'confidence': 0.65,
+        'timestamp': datetime.now().isoformat()
+    }
+]
 
 @app.route('/')
 def dashboard():
-    """Main dashboard page"""
-    return render_template('dashboard.html')
+    """Main dashboard with modern UI"""
+    
+    # Get recent statistics
+    stats = db_manager.get_dashboard_summary()
+    
+    # Mock trend analysis for display
+    trend_analysis = {
+        'trend_analysis': {
+            'momentum': {'direction': 'positive', 'strength': 'moderate'},
+            'volatility': {'risk_level': 'low'},
+            'prediction': {'confidence': 0.75}
+        },
+        'hourly_trends': {
+            'avg_sentiment': [0.2, 0.1, 0.3, 0.4, 0.2, 0.5, 0.3, 0.6, 0.4, 0.3, 0.5, 0.7, 
+                            0.6, 0.4, 0.3, 0.5, 0.6, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1, 0.2]
+        },
+        'recommendations': [
+            'Data quality is excellent - continue current monitoring approach',
+            'Sentiment trends are stable with positive momentum',
+            'Consider expanding data sources for more comprehensive analysis'
+        ]
+    }
+    
+    html_template = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{Config.APP_NAME} - Advanced Sentiment Intelligence</title>
+        
+        <!-- External Libraries -->
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mediainfo.js/dist/mediainfo.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+        <script src="https://cdn.jsdelivr.net/npm/d3-cloud@1.2.5/build/d3.layout.cloud.js"></script>
+        
+        <style>
+            {ui_generator.generate_complete_css()}
+            
+            /* Custom Dashboard Styles */
+            .dashboard-header {{
+                text-align: center;
+                padding: 3rem 0;
+                position: relative;
+                overflow: hidden;
+            }}
+            
+            .dashboard-title {{
+                font-size: 3rem;
+                font-weight: 700;
+                background: linear-gradient(135deg, var(--primary), var(--accent));
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 1rem;
+            }}
+            
+            .dashboard-subtitle {{
+                font-size: 1.25rem;
+                color: var(--text-secondary);
+                max-width: 600px;
+                margin: 0 auto;
+            }}
+            
+            .particles-bg {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: -1;
+            }}
+            
+            .status-indicator {{
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.5rem 1rem;
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                border-radius: 2rem;
+                font-size: 0.875rem;
+                margin-top: 1rem;
+            }}
+            
+            .status-dot {{
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--success);
+                animation: pulse 2s infinite;
+            }}
+            
+            .metric-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1.5rem;
+                margin: 2rem 0;
+            }}
+            
+            .live-feed {{
+                max-height: 400px;
+                overflow-y: auto;
+                padding: 1rem;
+            }}
+            
+            .feed-item {{
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid var(--glass-border);
+                border-radius: var(--border-radius);
+                padding: 1rem;
+                margin-bottom: 1rem;
+                transition: all var(--transition-normal) var(--ease);
+            }}
+            
+            .feed-item:hover {{
+                background: rgba(255, 255, 255, 0.1);
+                transform: translateX(4px);
+            }}
+            
+            .sentiment-positive {{ color: var(--success); }}
+            .sentiment-negative {{ color: var(--error); }}
+            .sentiment-neutral {{ color: var(--neutral); }}
+            
+            .real-time-badge {{
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+                background: linear-gradient(135deg, var(--success), var(--accent));
+                color: white;
+                padding: 0.25rem 0.75rem;
+                border-radius: 1rem;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            
+            .chart-mini {{
+                height: 100px;
+                width: 100%;
+                margin-top: 1rem;
+            }}
+            
+            .video-metadata-container {{
+                display: none;
+                margin-top: 2rem;
+            }}
+            
+            .video-metadata-card {{
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                border-radius: var(--border-radius);
+                padding: 1.5rem;
+            }}
+            
+            .video-metadata-card h3 {{
+                margin-bottom: 1rem;
+            }}
+            
+            .video-metadata-card pre {{
+                background: rgba(0, 0, 0, 0.2);
+                padding: 1rem;
+                border-radius: var(--border-radius);
+                max-height: 300px;
+                overflow-y: auto;
+            }}
+            
+            #word-cloud svg {{
+                width: 100%;
+                height: 100%;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="particles-js" class="particles-bg"></div>
+        
+        <!-- Dashboard Header -->
+        <div class="dashboard-header" data-animate="fade-down">
+            <div class="container">
+                <h1 class="dashboard-title">{Config.APP_NAME}</h1>
+                <p class="dashboard-subtitle">
+                    Advanced sentiment intelligence platform with real-time analysis, 
+                    predictive insights, and modern user experience
+                </p>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>System Operational</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Dashboard -->
+        <div class="container">
+            <!-- Metrics Grid -->
+            <div class="metric-grid stagger-fade-in">
+                <div class="metric-card" data-animate="scale">
+                    <div class="metric-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="metric-value" id="total-analyses">{stats.get('today', {}).get('total_analyses', 0)}</div>
+                    <div class="metric-label">Today's Analyses</div>
+                    <div class="chart-mini">
+                        <canvas id="analyses-trend"></canvas>
+                    </div>
+                </div>
+                
+                <div class="metric-card" data-animate="scale">
+                    <div class="metric-icon">
+                        <i class="fas fa-smile"></i>
+                    </div>
+                    <div class="metric-value" id="avg-confidence">{stats.get('today', {}).get('avg_confidence', 0.75):.1%}</div>
+                    <div class="metric-label">Average Confidence</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {stats.get('today', {}).get('avg_confidence', 0.75) * 100}%"></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card" data-animate="scale">
+                    <div class="metric-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="metric-value" id="data-sources">{stats.get('today', {}).get('unique_sources', 4)}</div>
+                    <div class="metric-label">Active Data Sources</div>
+                    <div class="real-time-badge">
+                        <i class="fas fa-check"></i>
+                        <span>Active</span>
+                    </div>
+                </div>
+                
+                <div class="metric-card" data-animate="scale">
+                    <div class="metric-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="metric-value" id="ai-insights">
+                        {len(trend_analysis.get('recommendations', []))}
+                    </div>
+                    <div class="metric-label">AI Insights</div>
+                    <div class="chart-mini">
+                        <canvas id="sentiment-distribution"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Tabs -->
+            <div class="tab-container" data-animate="fade-up">
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="switchTab('live-analysis', this)">
+                        <i class="fas fa-broadcast-tower"></i>
+                        Live Analysis
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('trends', this)">
+                        <i class="fas fa-chart-area"></i>
+                        Trends & Insights
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('test-analysis', this)">
+                        <i class="fas fa-keyboard"></i>
+                        Test Analysis
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('segments', this)">
+                        <i class="fas fa-puzzle-piece"></i>
+                        Segments
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('video-analysis', this)">
+                        <i class="fas fa-video"></i>
+                        Video Analysis
+                    </button>
+                </div>
+                
+                <div class="tab-content">
+                    <!-- Live Analysis Tab -->
+                    <div id="live-analysis" class="tab-pane active">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-stream text-primary"></i>
+                                    Sample Analysis Stream
+                                </h3>
+                                <div id="live-feed" class="live-feed">
+                                    {generate_sample_feed()}
+                                </div>
+                            </div>
+                            
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-chart-pie text-accent"></i>
+                                    Sentiment Distribution
+                                </h3>
+                                <canvas id="sentiment-pie-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Trends Tab -->
+                    <div id="trends" class="tab-pane">
+                        <div class="grid grid-cols-1 gap-6">
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-chart-line text-primary"></i>
+                                    24-Hour Sentiment Trends
+                                </h3>
+                                <canvas id="trends-chart" style="height: 400px;"></canvas>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="glass-card text-center">
+                                    <h4>Momentum</h4>
+                                    <div class="text-2xl font-bold sentiment-{trend_analysis.get('trend_analysis', {}).get('momentum', {}).get('direction', 'neutral')}">
+                                        {trend_analysis.get('trend_analysis', {}).get('momentum', {}).get('direction', 'stable').title()}
+                                    </div>
+                                    <p class="text-sm text-secondary">
+                                        {trend_analysis.get('trend_analysis', {}).get('momentum', {}).get('strength', 'weak').title()} strength
+                                    </p>
+                                </div>
+                                
+                                <div class="glass-card text-center">
+                                    <h4>Volatility</h4>
+                                    <div class="text-2xl font-bold text-warning">
+                                        {trend_analysis.get('trend_analysis', {}).get('volatility', {}).get('risk_level', 'low').title()}
+                                    </div>
+                                    <p class="text-sm text-secondary">Risk level</p>
+                                </div>
+                                
+                                <div class="glass-card text-center">
+                                    <h4>Prediction</h4>
+                                    <div class="text-2xl font-bold text-accent">
+                                        {trend_analysis.get('trend_analysis', {}).get('prediction', {}).get('confidence', 0):.1%}
+                                    </div>
+                                    <p class="text-sm text-secondary">Confidence</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Test Analysis Tab -->
+                    <div id="test-analysis" class="tab-pane">
+                        <div class="glass-card">
+                            <h3 class="mb-4">
+                                <i class="fas fa-keyboard text-primary"></i>
+                                Test Sentiment Analysis
+                            </h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Enter text to analyze:</label>
+                                    <textarea id="test-text" class="w-full p-3 bg-glass border border-glass-border rounded-lg text-white placeholder-gray-400" 
+                                              placeholder="Type your text here..." rows="4"></textarea>
+                                </div>
+                                <button onclick="analyzeText()" class="glass-btn primary">
+                                    <i class="fas fa-search"></i>
+                                    Analyze Sentiment
+                                </button>
+                                <div id="analysis-result" class="mt-4"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Segments Tab -->
+                    <div id="segments" class="tab-pane">
+                        <div class="glass-card">
+                            <h3 class="mb-4">
+                                <i class="fas fa-puzzle-piece text-primary"></i>
+                                Keyword Segments
+                            </h3>
+                            <div id="word-cloud-container" style="height: 400px; width: 100%;">
+                                <div id="word-cloud"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Analysis Tab -->
+                    <div id="video-analysis" class="tab-pane">
+                        <div class="glass-card">
+                            <h3 class="mb-4">
+                                <i class="fas fa-video text-primary"></i>
+                                Video Metadata Extractor
+                            </h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Upload a video file:</label>
+                                    <input type="file" id="video-file" accept="video/*" class="w-full p-3 bg-glass border border-glass-border rounded-lg text-white">
+                                </div>
+                                <div id="video-metadata-container" class="video-metadata-container">
+                                    <div class="video-metadata-card">
+                                        <h3>Video Metadata</h3>
+                                        <pre id="video-metadata-output"></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            {ui_generator.generate_javascript_animations()}
+            
+            // Dashboard-specific JavaScript
+            let sentimentChart, trendsChart, pieChart;
+            
+            // Initialize dashboard
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeCharts();
+                
+                // Animate numbers on load
+                setTimeout(() => {
+                    animateMetrics();
+                }, 500);
+                
+                // Video metadata extraction
+                const videoFileInput = document.getElementById('video-file');
+                videoFileInput.addEventListener('change', handleVideoFile);
+
+                // Initial word cloud for the default active tab if it's 'segments'
+                if (document.querySelector('.tab-btn.active').getAttribute('onclick').includes('segments')) {
+                    initializeWordCloud();
+                }
+            });
+            
+            // Tab switching functionality
+            function switchTab(tabName, element) {
+                // Hide all tab panes
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.classList.remove('active');
+                });
+                
+                // Remove active class from all tab buttons
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // Show selected tab pane
+                document.getElementById(tabName).classList.add('active');
+                
+                // Add active class to clicked button
+                element.classList.add('active');
+                
+                // Trigger animations for new content
+                const activePane = document.getElementById(tabName);
+                activePane.style.opacity = '0';
+                setTimeout(() => {
+                    activePane.style.opacity = '1';
+                    activePane.style.animation = 'fadeInUp 0.3s ease forwards';
+                }, 50);
+
+                if (tabName === 'segments') {
+                    const wordCloudContainer = document.getElementById('word-cloud');
+                    if (wordCloudContainer) {
+                        wordCloudContainer.innerHTML = ''; // Clear previous cloud
+                    }
+                    initializeWordCloud();
+                }
+            }
+            
+            // Initialize charts
+            function initializeCharts() {{
+                // Sentiment pie chart
+                const pieCtx = document.getElementById('sentiment-pie-chart').getContext('2d');
+                pieChart = new Chart(pieCtx, {{
+                    type: 'doughnut',
+                    data: {{
+                        labels: ['Positive', 'Neutral', 'Negative'],
+                        datasets: [{{
+                            data: [55, 30, 15],
+                            backgroundColor: [
+                                'rgba(16, 185, 129, 0.8)',
+                                'rgba(107, 114, 128, 0.8)',
+                                'rgba(239, 68, 68, 0.8)'
+                            ],
+                            borderWidth: 0
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{
+                                position: 'bottom',
+                                labels: {{
+                                    color: '#cbd5e1',
+                                    padding: 20
+                                }}
+                            }}
+                        }}
+                    }}
+                }});
+                
+                // Trends chart
+                const trendsCtx = document.getElementById('trends-chart').getContext('2d');
+                trendsChart = new Chart(trendsCtx, {{
+                    type: 'line',
+                    data: {{
+                        labels: Array.from({{length: 24}}, (_, i) => `${{i}}:00`),
+                        datasets: [{{
+                            label: 'Sentiment Score',
+                            data: {json.dumps(trend_analysis.get('hourly_trends', {}).get('avg_sentiment', [0]*24))},
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {{
+                            y: {{
+                                beginAtZero: true,
+                                grid: {{
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }},
+                                ticks: {{
+                                    color: '#cbd5e1'
+                                }}
+                            }},
+                            x: {{
+                                grid: {{
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }},
+                                ticks: {{
+                                    color: '#cbd5e1'
+                                }}
+                            }}
+                        }},
+                        plugins: {{
+                            legend: {{
+                                labels: {{
+                                    color: '#cbd5e1'
+                                }}
+                            }}
+                        }}
+                    }}
+                }});
+            }}
+            
+            // Word Cloud
+            function initializeWordCloud() {
+                const container = document.getElementById('word-cloud-container');
+                if (!container) return;
+                const width = container.offsetWidth;
+                const height = container.offsetHeight;
+
+                fetch('/api/word-cloud')
+                    .then(response => response.json())
+                    .then(words => {
+                        if (!words || words.length === 0) return;
+                        const layout = d3.layout.cloud()
+                            .size([width, height])
+                            .words(words)
+                            .padding(5)
+                            .rotate(() => (~~(Math.random() * 2) * 90)) // 0 or 90 degrees
+                            .font("Inter")
+                            .fontSize(d => d.size)
+                            .on("end", draw);
+
+                        layout.start();
+
+                        function draw(words) {
+                            d3.select("#word-cloud").html(""); // Clear previous
+                            d3.select("#word-cloud").append("svg")
+                                .attr("width", layout.size()[0])
+                                .attr("height", layout.size()[1])
+                                .append("g")
+                                .attr("transform", "translate(" + layout.size()[0] / 2 + "," + layout.size()[1] / 2 + ")")
+                                .selectAll("text")
+                                .data(words)
+                                .enter().append("text")
+                                .style("font-size", d => d.size + "px")
+                                .style("font-family", "Inter")
+                                .style("fill", (d, i) => d3.schemeCategory10[i % 10])
+                                .attr("text-anchor", "middle")
+                                .attr("transform", d => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")")
+                                .text(d => d.text);
+                        }
+                    });
+            }
+            
+            // Animate metrics on load
+            function animateMetrics() {{
+                const metrics = document.querySelectorAll('.metric-value');
+                metrics.forEach((metric, index) => {{
+                    setTimeout(() => {{
+                        metric.style.animation = 'bounce 0.6s ease';
+                    }}, index * 200);
+                }});
+            }}
+            
+            // Analyze text function
+            async function analyzeText() {{
+                const textInput = document.getElementById('test-text');
+                const resultDiv = document.getElementById('analysis-result');
+                const text = textInput.value.trim();
+                
+                if (!text) {{
+                    resultDiv.innerHTML = '<div class="notification error">Please enter some text to analyze.</div>';
+                    return;
+                }}
+                
+                resultDiv.innerHTML = '<div class="loading-spinner"></div>';
+                
+                try {{
+                    const response = await fetch('/api/analyze', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{ text: text, source: 'user_input' }})
+                    }});
+                    
+                    const result = await response.json();
+                    
+                    if (result.error) {{
+                        resultDiv.innerHTML = `<div class="notification error">Error: ${{result.error}}</div>`;
+                    }} else {{
+                        const analysis = result.analysis;
+                        resultDiv.innerHTML = `
+                            <div class="glass-card">
+                                <h4 class="mb-3">Analysis Results</h4>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium">Sentiment:</label>
+                                        <div class="text-lg font-bold sentiment-${{analysis.sentiment}}">
+                                            ${{analysis.sentiment.charAt(0).toUpperCase() + analysis.sentiment.slice(1)}}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium">Confidence:</label>
+                                        <div class="text-lg font-bold text-accent">
+                                            ${{(analysis.confidence * 100).toFixed(1)}}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${{analysis.confidence * 100}}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }}
+                }} catch (error) {{
+                    resultDiv.innerHTML = `<div class="notification error">Error: ${{error.message}}</div>`;
+                }}
+            }}
+            
+            // Video metadata extraction
+            function handleVideoFile(event) {{
+                const file = event.target.files[0];
+                if (!file) {{
+                    return;
+                }}
+                
+                const metadataContainer = document.getElementById('video-metadata-container');
+                const metadataOutput = document.getElementById('video-metadata-output');
+                
+                metadataContainer.style.display = 'block';
+                metadataOutput.textContent = 'Analyzing video...';
+                
+                const mediaInfo = MediaInfo({{ format: 'JSON' }}, (mediainfo) => {{
+                    const getSize = () => file.size;
+                    const readChunk = (chunkSize, offset) =>
+                        new Promise((resolve, reject) => {{
+                            const reader = new FileReader();
+                            reader.onload = (event) => {{
+                                if (event.target.error) {{
+                                    reject(event.target.error);
+                                }}
+                                resolve(new Uint8Array(event.target.result));
+                            }};
+                            reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
+                        }});
+                    
+                    mediainfo
+                        .analyzeData(getSize, readChunk)
+                        .then((result) => {{
+                            metadataOutput.textContent = JSON.stringify(result, null, 2);
+                        }})
+                        .catch((error) => {{
+                            metadataOutput.textContent = `Error analyzing file: \n${{error.stack}}`;
+                        }});
+                }});
+            }}
+            
+            // Initialize particles background
+            particlesJS('particles-js', {{
+                particles: {{
+                    number: {{ value: 50 }},
+                    color: {{ value: '#6366f1' }},
+                    shape: {{ type: 'circle' }},
+                    opacity: {{ value: 0.3 }},
+                    size: {{ value: 3 }},
+                    move: {{
+                        enable: true,
+                        speed: 1,
+                        direction: 'none',
+                        random: true,
+                        out_mode: 'out'
+                    }}
+                }},
+                interactivity: {{
+                    detect_on: 'canvas',
+                    events: {{
+                        onhover: {{ enable: true, mode: 'repulse' }},
+                        onclick: {{ enable: true, mode: 'push' }}
+                    }}
+                }}
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    
+    return render_template_string(html_template)
+
+def generate_sample_feed():
+    """Generate sample feed items for display"""
+    feed_html = ""
+    for analysis in SAMPLE_ANALYSES:
+        feed_html += f"""
+        <div class="feed-item animate-fade-in-left">
+            <div class="flex items-start gap-3">
+                <div class="sentiment-indicator sentiment-{analysis['sentiment']}">
+                    <i class="fas fa-{get_sentiment_icon(analysis['sentiment'])}"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="font-medium text-sm mb-1">{analysis['content']}</p>
+                    <div class="flex justify-between items-center text-xs text-secondary">
+                        <span class="sentiment-{analysis['sentiment']}">{analysis['sentiment']} ({analysis['confidence']:.1%})</span>
+                        <span>{analysis['source']}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+    return feed_html
+
+def get_sentiment_icon(sentiment):
+    """Get appropriate icon for sentiment"""
+    icons = {
+        'positive': 'smile',
+        'negative': 'frown',
+        'neutral': 'meh'
+    }
+    return icons.get(sentiment, 'meh')
 
 @app.route('/api/analyze', methods=['POST'])
-@performance_tracker.track_api_call('/api/analyze')
-def analyze_content():
-    """Analyze video content and comments"""
-    try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        video_title = data.get('video_title', '')
-        video_description = data.get('video_description', '')
-        comments = data.get('comments', [])
-        
-        with performance_tracker.track_analysis() as tracker:
-            tracker.set_comment_count(len(comments))
-            
-            # Perform analysis
-            result = nlp_engine.analyze_video_data(video_title, video_description, comments)
-            
-            # Add to analytics history
-            analytics_engine.add_analysis(result)
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/quick-analyze', methods=['POST'])
-@performance_tracker.track_api_call('/api/quick-analyze')
-def quick_analyze():
-    """Quick analysis for single text"""
+def analyze_text_route():
+    """Analyze text sentiment with enhanced features"""
     try:
         data = request.get_json()
         text = data.get('text', '')
+        source = data.get('source', 'user_input')
         
         if not text:
-            return jsonify({"error": "No text provided"}), 400
+            return jsonify({'error': 'No text provided'}), 400
         
-        result = nlp_engine.quick_analyze(text)
-        return jsonify(result)
+        # Perform sentiment analysis
+        analysis = sentiment_analyzer.analyze_sentiment(text)
         
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/analytics/report')
-@performance_tracker.track_api_call('/api/analytics/report')
-def get_analytics_report():
-    """Get comprehensive analytics report"""
-    try:
-        days_back = request.args.get('days', 7, type=int)
-        report = analytics_engine.generate_comprehensive_report(days_back)
-        return jsonify(report)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/system/health')
-@performance_tracker.track_api_call('/api/system/health')
-def system_health():
-    """Get system health status"""
-    try:
-        health = system_monitor.get_health_status()
-        metrics = system_monitor.get_current_metrics()
-        db_stats = db_manager.get_system_stats()
+        # Store in database
+        analysis_id = db_manager.store_analysis_result(
+            content=text,
+            sentiment=analysis['sentiment'],
+            confidence=analysis['confidence'],
+            source=source,
+            metadata=data.get('metadata', {})
+        )
         
         return jsonify({
-            "health": health,
-            "metrics": metrics,
-            "database": db_stats,
-            "timestamp": datetime.now().isoformat()
+            'id': analysis_id,
+            'analysis': analysis,
+            'timestamp': datetime.now().isoformat()
         })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/system/alerts')
-@performance_tracker.track_api_call('/api/system/alerts')
-def get_alerts():
-    """Get system alerts"""
-    try:
-        severity = request.args.get('severity')
-        resolved = request.args.get('resolved')
-        limit = request.args.get('limit', 50, type=int)
         
-        if resolved is not None:
-            resolved = resolved.lower() == 'true'
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/statistics')
+def get_statistics():
+    """Get comprehensive statistics"""
+    try:
+        hours = request.args.get('hours', 24, type=int)
+        stats = db_manager.get_sentiment_statistics(hours=hours)
         
-        alerts = system_monitor.get_alerts(severity, resolved, limit)
-        return jsonify({"alerts": alerts})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/system/performance')
-@performance_tracker.track_api_call('/api/system/performance')
-def get_performance():
-    """Get performance report"""
-    try:
-        hours_back = request.args.get('hours', 24, type=int)
-        report = system_monitor.get_performance_report(hours_back)
-        return jsonify(report)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/data/export')
-@performance_tracker.track_api_call('/api/data/export')
-def export_data():
-    """Export system data"""
-    try:
-        format_type = request.args.get('format', 'json')
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"sentiment_analysis_export_{timestamp}.{format_type}"
+        return jsonify(stats)
         
-        if db_manager.export_data(filename, format_type):
-            return send_file(filename, as_attachment=True)
-        else:
-            return jsonify({"error": "Export failed"}), 500
-            
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/example/demo')
-@performance_tracker.track_api_call('/api/example/demo')
-def demo_analysis():
-    """Demo with example data"""
+@app.route('/api/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'version': Config.APP_VERSION,
+        'environment': Config.ENVIRONMENT
+    })
+
+@app.route('/api/word-cloud')
+def get_word_cloud_data():
+    """Get data for word cloud visualization"""
     try:
-        video_title = "My first day in Nairobi 🚖🔥"
-        video_description = "Trying out local food and matatus, what an adventure!"
-        comments = [
-            "😂😂 bro you look lost but it's vibes",
-            "This city will eat you alive, trust me.",
-            "Matatu rides >>> Uber any day",
-            "Spam link: www.fakecrypto.com",
-            "Karibu Kenya! We love you ❤️"
+        # In a real application, this would be derived from recent analysis
+        words = [
+            {"text": "AI", "size": 40}, {"text": "Python", "size": 30},
+            {"text": "Data", "size": 25}, {"text": "Sentiment", "size": 35},
+            {"text": "Flask", "size": 20}, {"text": "JavaScript", "size": 28},
+            {"text": "Cloud", "size": 18}, {"text": "API", "size": 22},
+            {"text": "Real-time", "size": 26}, {"text": "Dashboard", "size": 32},
+            {"text": "Analytics", "size": 29}, {"text": "Machine Learning", "size": 24}
         ]
-        
-        result = nlp_engine.analyze_video_data(video_title, video_description, comments)
-        analytics_engine.add_analysis(result)
-        
-        return jsonify(result)
-        
+        return jsonify(words)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/system/stats')
-@performance_tracker.track_api_call('/api/system/stats')
-def system_stats():
-    """Get comprehensive system statistics"""
-    try:
-        db_stats = db_manager.get_system_stats()
-        health = system_monitor.get_health_status()
-        
-        # Get recent trends
-        trend_data = {}
-        try:
-            trend_data = analytics_engine.get_trend_summary('sentiment')
-        except:
-            pass  # Trend data might not be available
-        
-        return jsonify({
-            "database_stats": db_stats,
-            "system_health": health,
-            "trends": trend_data,
-            "uptime": (datetime.now() - system_monitor.start_time).total_seconds(),
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# Create templates directory and basic HTML templates
-def create_dashboard_templates():
-    """Create basic HTML templates for the dashboard"""
-    
-    templates_dir = "templates"
-    os.makedirs(templates_dir, exist_ok=True)
-    
-    # Main dashboard template
-    dashboard_html = '''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentiment Analysis Dashboard</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; }
-        .header h1 { margin: 0; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-        .card { background: white; border-radius: 10px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .card h3 { color: #333; margin-bottom: 1rem; }
-        .metric { display: flex; justify-content: space-between; margin: 0.5rem 0; }
-        .metric-value { font-weight: bold; color: #667eea; }
-        .status-healthy { color: #10b981; }
-        .status-warning { color: #f59e0b; }
-        .status-critical { color: #ef4444; }
-        .btn { background: #667eea; color: white; border: none; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer; }
-        .btn:hover { background: #5a67d8; }
-        .demo-section { margin: 2rem 0; }
-        .demo-input { width: 100%; padding: 0.5rem; margin: 0.5rem 0; border: 1px solid #ddd; border-radius: 5px; }
-        .demo-output { background: #f8f9fa; padding: 1rem; border-radius: 5px; margin: 1rem 0; white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto; }
-        .alert-item { padding: 0.5rem; margin: 0.5rem 0; border-left: 4px solid #ef4444; background: #fef2f2; }
-        .loading { text-align: center; color: #666; }
-    </style>
-</head>
-<body>
-    <header class="header">
-        <h1>🧠 Sentiment Analysis Dashboard</h1>
-        <p>Real-time monitoring and analytics for social media sentiment</p>
-    </header>
-    
-    <div class="container">
-        <!-- System Status -->
-        <div class="grid">
-            <div class="card">
-                <h3>🚥 System Health</h3>
-                <div id="system-health">
-                    <div class="loading">Loading...</div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>📊 Quick Stats</h3>
-                <div id="quick-stats">
-                    <div class="loading">Loading...</div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>⚠️ Recent Alerts</h3>
-                <div id="recent-alerts">
-                    <div class="loading">Loading...</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Demo Section -->
-        <div class="card demo-section">
-            <h3>🎯 Live Demo - Analyze Content</h3>
-            <p>Test the sentiment analysis with your own content or use the example below:</p>
-            
-            <div style="margin: 1rem 0;">
-                <button class="btn" onclick="runDemo()">Run Example Analysis</button>
-                <button class="btn" onclick="clearDemo()">Clear</button>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div>
-                    <label>Video Title:</label>
-                    <input type="text" id="demo-title" class="demo-input" placeholder="Enter video title...">
-                    
-                    <label>Video Description:</label>
-                    <textarea id="demo-description" class="demo-input" rows="3" placeholder="Enter video description..."></textarea>
-                    
-                    <label>Comments (one per line):</label>
-                    <textarea id="demo-comments" class="demo-input" rows="6" placeholder="Enter comments, one per line..."></textarea>
-                    
-                    <button class="btn" onclick="analyzeCustom()">Analyze Custom Content</button>
-                </div>
-                
-                <div>
-                    <label>Analysis Result:</label>
-                    <div id="demo-output" class="demo-output">Results will appear here...</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Analytics Section -->
-        <div class="card">
-            <h3>📈 Analytics Report</h3>
-            <button class="btn" onclick="loadAnalytics()">Generate Report</button>
-            <div id="analytics-output" class="demo-output" style="margin-top: 1rem;">
-                Click "Generate Report" to see detailed analytics...
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        // Auto-refresh system status
-        function loadSystemStatus() {
-            fetch('/api/system/health')
-                .then(response => response.json())
-                .then(data => {
-                    const healthDiv = document.getElementById('system-health');
-                    const health = data.health;
-                    
-                    let statusClass = 'status-healthy';
-                    if (health.health_status === 'warning' || health.health_status === 'degraded') {
-                        statusClass = 'status-warning';
-                    } else if (health.health_status === 'critical') {
-                        statusClass = 'status-critical';
-                    }
-                    
-                    healthDiv.innerHTML = `
-                        <div class="metric">
-                            <span>Status:</span>
-                            <span class="${statusClass}">${health.health_status.toUpperCase()}</span>
-                        </div>
-                        <div class="metric">
-                            <span>Health Score:</span>
-                            <span class="metric-value">${health.health_score}/100</span>
-                        </div>
-                        <div class="metric">
-                            <span>Active Alerts:</span>
-                            <span class="metric-value">${health.critical_alerts + health.warning_alerts}</span>
-                        </div>
-                    `;
-                })
-                .catch(error => {
-                    document.getElementById('system-health').innerHTML = '<div style="color: red;">Error loading status</div>';
-                });
-        }
-        
-        function loadQuickStats() {
-            fetch('/api/system/stats')
-                .then(response => response.json())
-                .then(data => {
-                    const statsDiv = document.getElementById('quick-stats');
-                    const dbStats = data.database_stats;
-                    
-                    statsDiv.innerHTML = `
-                        <div class="metric">
-                            <span>Videos Analyzed:</span>
-                            <span class="metric-value">${dbStats.total_videos_analyzed || 0}</span>
-                        </div>
-                        <div class="metric">
-                            <span>Comments Processed:</span>
-                            <span class="metric-value">${dbStats.total_comments_analyzed || 0}</span>
-                        </div>
-                        <div class="metric">
-                            <span>Uptime:</span>
-                            <span class="metric-value">${Math.round(data.uptime / 3600)}h</span>
-                        </div>
-                    `;
-                })
-                .catch(error => {
-                    document.getElementById('quick-stats').innerHTML = '<div style="color: red;">Error loading stats</div>';
-                });
-        }
-        
-        function loadRecentAlerts() {
-            fetch('/api/system/alerts?resolved=false&limit=5')
-                .then(response => response.json())
-                .then(data => {
-                    const alertsDiv = document.getElementById('recent-alerts');
-                    
-                    if (data.alerts.length === 0) {
-                        alertsDiv.innerHTML = '<div style="color: green;">✅ No active alerts</div>';
-                    } else {
-                        alertsDiv.innerHTML = data.alerts.map(alert => `
-                            <div class="alert-item">
-                                <strong>${alert.severity.toUpperCase()}</strong>: ${alert.title}
-                            </div>
-                        `).join('');
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('recent-alerts').innerHTML = '<div style="color: red;">Error loading alerts</div>';
-                });
-        }
-        
-        function runDemo() {
-            document.getElementById('demo-title').value = "My first day in Nairobi 🚖🔥";
-            document.getElementById('demo-description').value = "Trying out local food and matatus, what an adventure!";
-            document.getElementById('demo-comments').value = `😂😂 bro you look lost but it's vibes
-This city will eat you alive, trust me.
-Matatu rides >>> Uber any day
-Spam link: www.fakecrypto.com
-Karibu Kenya! We love you ❤️`;
-            
-            analyzeCustom();
-        }
-        
-        function analyzeCustom() {
-            const title = document.getElementById('demo-title').value;
-            const description = document.getElementById('demo-description').value;
-            const commentsText = document.getElementById('demo-comments').value;
-            const comments = commentsText.split('\\n').filter(c => c.trim());
-            
-            if (!title && !description && comments.length === 0) {
-                alert('Please enter some content to analyze');
-                return;
-            }
-            
-            document.getElementById('demo-output').textContent = 'Analyzing...';
-            
-            fetch('/api/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    video_title: title,
-                    video_description: description,
-                    comments: comments
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('demo-output').textContent = JSON.stringify(data, null, 2);
-            })
-            .catch(error => {
-                document.getElementById('demo-output').textContent = 'Error: ' + error.message;
-            });
-        }
-        
-        function clearDemo() {
-            document.getElementById('demo-title').value = '';
-            document.getElementById('demo-description').value = '';
-            document.getElementById('demo-comments').value = '';
-            document.getElementById('demo-output').textContent = 'Results will appear here...';
-        }
-        
-        function loadAnalytics() {
-            document.getElementById('analytics-output').textContent = 'Generating report...';
-            
-            fetch('/api/analytics/report?days=7')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('analytics-output').textContent = JSON.stringify(data, null, 2);
-                })
-                .catch(error => {
-                    document.getElementById('analytics-output').textContent = 'Error: ' + error.message;
-                });
-        }
-        
-        // Initialize dashboard
-        loadSystemStatus();
-        loadQuickStats();
-        loadRecentAlerts();
-        
-        // Auto-refresh every 30 seconds
-        setInterval(() => {
-            loadSystemStatus();
-            loadQuickStats();
-            loadRecentAlerts();
-        }, 30000);
-    </script>
-</body>
-</html>'''
-    
-    with open(os.path.join(templates_dir, 'dashboard.html'), 'w', encoding='utf-8') as f:
-        f.write(dashboard_html)
-
-def run_dashboard(host='127.0.0.1', port=5000, debug=True):
-    """Run the dashboard server"""
-    print(f"🚀 Starting Sentiment Analysis Dashboard...")
-    print(f"📊 Dashboard will be available at: http://{host}:{port}")
-    print(f"🎯 Demo endpoint: http://{host}:{port}/api/example/demo")
-    print(f"📈 Analytics endpoint: http://{host}:{port}/api/analytics/report")
-    print(f"🚥 Health check: http://{host}:{port}/api/system/health")
-    
-    # Create templates
-    create_dashboard_templates()
-    
-    # Run the Flask app
-    app.run(host=host, port=port, debug=debug, threaded=True)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Start the dashboard
-    run_dashboard(host='0.0.0.0', port=5000, debug=False)
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))
