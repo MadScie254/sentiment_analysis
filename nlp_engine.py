@@ -1,18 +1,23 @@
 from typing import Dict, List, Optional, Union
 import json
+import re
 from datetime import datetime
 from sentiment_engine import SentimentAnalyzer
 from emotion_detector import EmotionDetector
 from comment_classifier import CommentClassifier
+from link_analyzer import LinkAnalyzer
 
 class NLPEngine:
     """
     Main NLP Engine that orchestrates all sentiment analysis components
+    Now includes link analysis capabilities for social media content
     """
     
     def __init__(self):
         self.sentiment_analyzer = SentimentAnalyzer()
         self.emotion_detector = EmotionDetector()
+        self.comment_classifier = CommentClassifier()
+        self.link_analyzer = LinkAnalyzer()
         self.comment_classifier = CommentClassifier()
     
     def analyze_video_data(self, video_title: str, video_description: str, 
@@ -235,6 +240,216 @@ def process_example_data():
     }
     
     return formatted_result
+
+    def analyze_url(self, url: str) -> Dict[str, Any]:
+        """
+        Analyze content from a URL (YouTube, Twitter, Instagram, etc.)
+        
+        Args:
+            url (str): URL to analyze
+            
+        Returns:
+            Dict containing analysis results
+        """
+        # Extract content from URL
+        url_data = self.link_analyzer.analyze_url(url)
+        
+        if not url_data.get('success', False):
+            return {
+                'url': url,
+                'error': url_data.get('error', 'Failed to extract content'),
+                'success': False
+            }
+        
+        # Analyze the extracted content
+        title = url_data.get('title', '')
+        description = url_data.get('description', '')
+        comments = url_data.get('comments', [])
+        
+        # Perform sentiment analysis on the content
+        analysis_result = self.analyze_video_data(title, description, comments)
+        
+        # Add URL-specific metadata
+        analysis_result['url_analysis'] = {
+            'original_url': url,
+            'platform': url_data.get('type', 'unknown'),
+            'domain': url_data.get('domain', ''),
+            'metadata': url_data.get('metadata', {}),
+            'extracted_at': url_data.get('extracted_at', ''),
+            'content_summary': {
+                'title_length': len(title),
+                'description_length': len(description),
+                'comments_count': len(comments),
+                'has_content': bool(title or description or comments)
+            }
+        }
+        
+        return analysis_result
+    
+    def analyze_multiple_urls(self, urls: List[str]) -> Dict[str, Any]:
+        """
+        Analyze multiple URLs and provide aggregated results
+        
+        Args:
+            urls (List[str]): List of URLs to analyze
+            
+        Returns:
+            Dict containing aggregated analysis results
+        """
+        results = []
+        platform_stats = {}
+        total_comments = 0
+        sentiment_aggregation = {'positive': 0, 'negative': 0, 'neutral': 0, 'mixed': 0}
+        emotion_aggregation = {}
+        
+        for url in urls:
+            try:
+                result = self.analyze_url(url)
+                if result.get('url_analysis', {}).get('content_summary', {}).get('has_content', False):
+                    results.append(result)
+                    
+                    # Track platform statistics
+                    platform = result.get('url_analysis', {}).get('platform', 'unknown')
+                    platform_stats[platform] = platform_stats.get(platform, 0) + 1
+                    
+                    # Aggregate sentiment
+                    video_sentiment = result.get('video_sentiment', 'neutral')
+                    if isinstance(video_sentiment, dict):
+                        video_sentiment = video_sentiment.get('label', 'neutral')
+                    
+                    if video_sentiment in sentiment_aggregation:
+                        sentiment_aggregation[video_sentiment] += 1
+                    
+                    # Aggregate comments
+                    comments = result.get('comments', [])
+                    total_comments += len(comments)
+                    
+                    # Aggregate emotions
+                    for comment in comments:
+                        emotions = comment.get('emotion', [])
+                        for emotion in emotions:
+                            emotion_aggregation[emotion] = emotion_aggregation.get(emotion, 0) + 1
+                            
+            except Exception as e:
+                results.append({
+                    'url': url,
+                    'error': str(e),
+                    'success': False
+                })
+        
+        return {
+            'summary': {
+                'total_urls_analyzed': len(urls),
+                'successful_analyses': len([r for r in results if r.get('success', True)]),
+                'total_comments': total_comments,
+                'platforms_analyzed': len(platform_stats)
+            },
+            'platform_distribution': platform_stats,
+            'sentiment_aggregation': sentiment_aggregation,
+            'emotion_aggregation': emotion_aggregation,
+            'individual_results': results,
+            'analyzed_at': datetime.now().isoformat()
+        }
+    
+    def extract_urls_from_text(self, text: str) -> List[str]:
+        """
+        Extract URLs from text content
+        
+        Args:
+            text (str): Text containing potential URLs
+            
+        Returns:
+            List of extracted URLs
+        """
+        url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        urls = re.findall(url_pattern, text)
+        return urls
+    
+    def analyze_text_with_urls(self, text: str, analyze_embedded_urls: bool = True) -> Dict[str, Any]:
+        """
+        Analyze text content and optionally analyze any embedded URLs
+        
+        Args:
+            text (str): Text content to analyze
+            analyze_embedded_urls (bool): Whether to analyze URLs found in the text
+            
+        Returns:
+            Dict containing comprehensive analysis results
+        """
+        # Extract URLs from text
+        urls = self.extract_urls_from_text(text)
+        
+        # Analyze the text content itself
+        text_analysis = self.analyze_single_comment(text)
+        
+        result = {
+            'text_analysis': text_analysis,
+            'embedded_urls': {
+                'found_urls': urls,
+                'url_count': len(urls),
+                'analysis_results': []
+            },
+            'combined_insights': {},
+            'analyzed_at': datetime.now().isoformat()
+        }
+        
+        # Analyze embedded URLs if requested
+        if analyze_embedded_urls and urls:
+            url_results = []
+            for url in urls:
+                try:
+                    url_result = self.analyze_url(url)
+                    url_results.append(url_result)
+                except Exception as e:
+                    url_results.append({
+                        'url': url,
+                        'error': str(e),
+                        'success': False
+                    })
+            
+            result['embedded_urls']['analysis_results'] = url_results
+            
+            # Create combined insights
+            all_sentiments = [text_analysis.get('sentiment', 'neutral')]
+            all_emotions = text_analysis.get('emotion', [])
+            
+            for url_result in url_results:
+                if url_result.get('success', True):
+                    video_sentiment = url_result.get('video_sentiment', 'neutral')
+                    if isinstance(video_sentiment, dict):
+                        video_sentiment = video_sentiment.get('label', 'neutral')
+                    all_sentiments.append(video_sentiment)
+                    
+                    comments = url_result.get('comments', [])
+                    for comment in comments:
+                        emotions = comment.get('emotion', [])
+                        all_emotions.extend(emotions)
+            
+            # Calculate combined sentiment
+            sentiment_counts = {}
+            for sentiment in all_sentiments:
+                sentiment_counts[sentiment] = sentiment_counts.get(sentiment, 0) + 1
+            
+            dominant_sentiment = max(sentiment_counts, key=sentiment_counts.get) if sentiment_counts else 'neutral'
+            
+            # Calculate emotion distribution
+            emotion_counts = {}
+            for emotion in all_emotions:
+                emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
+            
+            result['combined_insights'] = {
+                'dominant_sentiment': dominant_sentiment,
+                'sentiment_distribution': sentiment_counts,
+                'top_emotions': sorted(emotion_counts.items(), key=lambda x: x[1], reverse=True)[:5],
+                'total_content_pieces': 1 + len(urls),
+                'has_multimedia_content': len(urls) > 0
+            }
+        
+        return result
+    
+    def get_sample_urls(self) -> Dict[str, List[str]]:
+        """Get sample URLs for testing"""
+        return self.link_analyzer.get_sample_links()
 
 if __name__ == "__main__":
     # Test the engine with the example data
