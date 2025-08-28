@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from threading import Lock
 from functools import lru_cache
 from flask import Flask, render_template_string, request, jsonify
-from video_metadata import VideoMetadataExtractor
+from video_metadata import extract_video_metadata
 
 # Enhanced imports for better functionality
 try:
@@ -51,7 +51,6 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file upload
 db_manager = DatabaseManager()
 nlp_engine = NLPEngine()
 ui_generator = UIGenerator()
-video_extractor = VideoMetadataExtractor()
 
 # Thread-safe cache for performance
 cache_lock = Lock()
@@ -1519,7 +1518,7 @@ def extract_metadata_from_url():
             return jsonify({'error': 'URL is required'}), 400
         
         # Use the enhanced video metadata extractor
-        metadata = video_extractor.extract_from_url(url)
+        metadata = extract_video_metadata(url)
         return jsonify(metadata)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1540,7 +1539,7 @@ def extract_metadata_from_file():
             file.save(tmp_file.name)
             
             # Extract metadata from file
-            metadata = video_extractor.extract_from_file(tmp_file.name)
+            metadata = extract_video_metadata(tmp_file.name)
             
             # Clean up
             os.unlink(tmp_file.name)

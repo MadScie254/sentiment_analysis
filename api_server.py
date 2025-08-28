@@ -1,15 +1,18 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 import json
 import uvicorn
+import tempfile
+import os
 from nlp_engine import NLPEngine
+from video_metadata import VideoMetadataExtractor
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Sentiment Analysis API",
-    description="Advanced NLP backend for sentiment analysis, emotion detection, and comment classification",
+    description="Advanced NLP backend for sentiment analysis, emotion detection, comment classification, and media metadata extraction",
     version="1.0.0"
 )
 
@@ -22,8 +25,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize NLP Engine
+# Initialize engines
 nlp_engine = NLPEngine()
+video_metadata_extractor = VideoMetadataExtractor()
 
 # Pydantic models for request/response
 class VideoData(BaseModel):
@@ -34,6 +38,9 @@ class VideoData(BaseModel):
 class TextInput(BaseModel):
     text: str
 
+class MediaURLInput(BaseModel):
+    url: str
+
 class CommentBatch(BaseModel):
     comments: List[str]
 
@@ -41,6 +48,11 @@ class AnalysisResponse(BaseModel):
     video_sentiment: str
     video_emotion: List[str]
     comments: List[Dict[str, Any]]
+
+class MediaMetadataResponse(BaseModel):
+    success: bool
+    metadata: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
 
 @app.get("/")
 async def root():
@@ -191,6 +203,70 @@ async def get_example_analysis():
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Example analysis failed: {str(e)}")
+
+@app.post("/media/extract")
+async def extract_media_metadata(
+    url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None)
+) -> MediaMetadataResponse:
+    """
+    Extract metadata from video URL or uploaded file
+    
+    Args:
+        url: Video URL (YouTube, TikTok, Vimeo, etc.)
+        file: Video file upload
+        
+    Returns:
+        MediaMetadataResponse with extracted metadata or error
+    """
+    if not url and not file:
+        raise HTTPException(status_code=400, detail="Either URL or file must be provided")
+    
+    if url and file:
+        raise HTTPException(status_code=400, detail="Provide either URL or file, not both")
+    
+    try:
+        if url:
+            # Extract from URL
+            metadata = video_metadata_extractor.extract_from_url(url)
+            if "error" in metadata:
+                return MediaMetadataResponse(success=False, error=metadata["error"])
+            return MediaMetadataResponse(success=True, metadata=metadata)
+            
+        elif file:
+            # Save uploaded file temporarily and extract metadata
+            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp_file:
+                content = await file.read()
+                tmp_file.write(content)
+                tmp_file_path = tmp_file.name
+            
+            try:
+                metadata = video_metadata_extractor.extract_from_file(tmp_file_path)
+                if "error" in metadata:
+                    return MediaMetadataResponse(success=False, error=metadata["error"])
+                return MediaMetadataResponse(success=True, metadata=metadata)
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(tmp_file_path)
+                except OSError:
+                    pass  # File cleanup failed, but metadata was extracted
+                    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Media extraction failed: {str(e)}")
+
+@app.post("/media/extract-url")
+async def extract_media_from_url(data: MediaURLInput) -> MediaMetadataResponse:
+    """
+    Extract metadata from video URL (alternative JSON endpoint)
+    """
+    try:
+        metadata = video_metadata_extractor.extract_from_url(data.url)
+        if "error" in metadata:
+            return MediaMetadataResponse(success=False, error=metadata["error"])
+        return MediaMetadataResponse(success=True, metadata=metadata)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"URL metadata extraction failed: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(

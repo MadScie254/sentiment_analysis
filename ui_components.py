@@ -1,13 +1,13 @@
 """
-Minimalist Modern UI Components and Styling System
-Advanced CSS generation with smooth animations and modern design patterns
+Enhanced Modern UI Components and Styling System
+Advanced CSS generation with smooth animations, stable charts, and modern design patterns
 """
 
 from typing import Dict, Any, List
 import json
 
 class ModernUIGenerator:
-    """Generate modern, minimalist UI components with advanced styling"""
+    """Generate modern, minimalist UI components with advanced styling and stable chart handling"""
     
     def __init__(self):
         self.color_palette = {
@@ -35,6 +35,406 @@ class ModernUIGenerator:
             'bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
             'elastic': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
         }
+    
+    def generate_stable_chart_styles(self) -> str:
+        """Generate CSS for stable, non-resizing charts"""
+        return """
+        /* Stable Chart Container Styles */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px; /* Fixed height prevents growth */
+            overflow: hidden;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+        }
+        
+        .chart-container canvas {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: auto !important;
+            height: auto !important;
+        }
+        
+        /* Mini chart styles */
+        .chart-mini {
+            height: 120px !important;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-mini canvas {
+            max-height: 100px !important;
+        }
+        
+        /* Prevent chart resize on scroll */
+        .chart-wrapper {
+            position: relative;
+            height: 100%;
+            width: 100%;
+        }
+        
+        /* Word cloud container */
+        .word-cloud-container {
+            height: 400px !important;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+        }
+        
+        .word-cloud-container svg {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100%;
+            max-height: 100%;
+        }
+        """
+    
+    def generate_pagination_styles(self) -> str:
+        """Generate styles for pagination components"""
+        return """
+        /* Pagination Styles */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 2rem 0;
+            padding: 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+        }
+        
+        .pagination-btn {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all var(--transition-normal) var(--ease);
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--primary);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin: 0 1rem;
+        }
+        
+        .load-more-btn {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border: none;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all var(--transition-normal) var(--ease);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 1rem auto;
+        }
+        
+        .load-more-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .load-more-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        """
+    
+    def generate_media_panel_styles(self) -> str:
+        """Generate styles for media metadata panel"""
+        return """
+        /* Media Panel Styles */
+        .media-panel {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .media-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .media-input-toggle {
+            display: flex;
+            background: var(--glass);
+            border-radius: var(--border-radius);
+            padding: 0.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .media-toggle-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: calc(var(--border-radius) - 0.25rem);
+            cursor: pointer;
+            transition: all var(--transition-normal) var(--ease);
+        }
+        
+        .media-toggle-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .url-input-container,
+        .file-input-container {
+            display: none;
+        }
+        
+        .url-input-container.active,
+        .file-input-container.active {
+            display: block;
+        }
+        
+        .media-url-input {
+            width: 100%;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+        
+        .media-url-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .file-drop-zone {
+            border: 2px dashed var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            transition: all var(--transition-normal) var(--ease);
+            cursor: pointer;
+        }
+        
+        .file-drop-zone:hover,
+        .file-drop-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+        
+        .metadata-card {
+            background: var(--surface);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .metadata-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .metadata-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .metadata-platform {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .metadata-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .metadata-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+        
+        .metadata-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .metadata-thumbnail {
+            max-width: 200px;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--glass-border);
+        }
+        
+        .copy-json-btn {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all var(--transition-normal) var(--ease);
+            font-size: 0.875rem;
+        }
+        
+        .copy-json-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .raw-metadata {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.4;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        """
+    
+    def generate_tab_styles(self) -> str:
+        """Generate enhanced tab styles"""
+        return """
+        /* Enhanced Tab Styles */
+        .tab-container {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            margin: 2rem 0;
+        }
+        
+        .tab-nav {
+            display: flex;
+            background: var(--surface);
+            border-bottom: 1px solid var(--glass-border);
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        
+        .tab-nav::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            min-width: max-content;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all var(--transition-normal) var(--ease);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            white-space: nowrap;
+            position: relative;
+        }
+        
+        .tab-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+            transform: scaleX(0);
+            transition: transform var(--transition-normal) var(--ease);
+        }
+        
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .tab-btn.active {
+            color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .tab-btn.active::after {
+            transform: scaleX(1);
+        }
+        
+        .tab-content {
+            padding: 2rem;
+            min-height: 400px;
+        }
+        
+        .tab-pane {
+            display: none;
+            animation: fadeInUp var(--transition-normal) var(--ease);
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        """
     
     def generate_base_styles(self) -> str:
         """Generate base CSS styles with modern design system"""
@@ -833,9 +1233,13 @@ class ModernUIGenerator:
         """
     
     def generate_complete_css(self) -> str:
-        """Generate complete CSS with all components"""
+        """Generate complete CSS with all components including stable charts and pagination"""
         return (
             self.generate_base_styles() +
+            self.generate_stable_chart_styles() +
+            self.generate_pagination_styles() +
+            self.generate_media_panel_styles() +
+            self.generate_tab_styles() +
             self.generate_glass_components() +
             self.generate_modern_animations() +
             self.generate_interactive_components() +
