@@ -6,6 +6,7 @@ Production-ready Flask application with real ML models and APIs
 import os
 import sys
 import json
+import math
 import tempfile
 import logging
 from datetime import datetime, timedelta
@@ -20,6 +21,11 @@ from flask_cors import CORS
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
+
+# Import requests for API calls
+import requests
+import feedparser
+from urllib.parse import urljoin, urlparse
 
 # Real components
 try:
@@ -115,6 +121,241 @@ if not REAL_COMPONENTS_AVAILABLE:
             }
         ]
 
+# Real News API Integration Class
+class RealNewsAPI:
+    """Real News API integration using multiple news sources"""
+    
+    def __init__(self):
+        self.newsapi_key = os.getenv('NEWSAPI_KEY')
+        self.gnews_key = os.getenv('GNEWS_API_KEY')
+        self.currents_key = os.getenv('CURRENTS_API_KEY')
+        self.session = requests.Session()
+        self.session.headers.update({'User-Agent': 'SentimentAnalysisDashboard/1.0'})
+    
+    def get_trending_news(self, limit=20, page=1):
+        """Get trending news from multiple sources"""
+        all_articles = []
+        
+        # Try NewsAPI first
+        if self.newsapi_key:
+            articles = self._fetch_from_newsapi(limit//3, page)
+            all_articles.extend(articles)
+        
+        # Try GNews
+        if self.gnews_key and len(all_articles) < limit:
+            remaining = limit - len(all_articles)
+            articles = self._fetch_from_gnews(remaining, page)
+            all_articles.extend(articles)
+        
+        # Try Currents API
+        if self.currents_key and len(all_articles) < limit:
+            remaining = limit - len(all_articles)
+            articles = self._fetch_from_currents(remaining, page)
+            all_articles.extend(articles)
+        
+        # Add RSS feeds as fallback
+        if len(all_articles) < limit:
+            remaining = limit - len(all_articles)
+            articles = self._fetch_from_rss(remaining)
+            all_articles.extend(articles)
+        
+        return all_articles[:limit]
+    
+    def _fetch_from_newsapi(self, limit, page):
+        """Fetch news from NewsAPI"""
+        try:
+            url = "https://newsapi.org/v2/top-headlines"
+            params = {
+                'apiKey': self.newsapi_key,
+                'country': 'us',
+                'pageSize': min(limit, 100),
+                'page': page
+            }
+            
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            articles = []
+            for article in data.get('articles', []):
+                if article.get('title') and article.get('description'):
+                    articles.append({
+                        'title': article['title'],
+                        'summary': article['description'][:200] + '...' if len(article['description']) > 200 else article['description'],
+                        'url': article.get('url', ''),
+                        'source': article.get('source', {}).get('name', 'NewsAPI'),
+                        'timestamp': article.get('publishedAt', ''),
+                        'image_url': article.get('urlToImage', ''),
+                        'sentiment': 'neutral',  # Will be analyzed later
+                        'confidence': 0.0
+                    })
+            
+            return articles
+            
+        except Exception as e:
+            logger.error(f"NewsAPI error: {e}")
+            return []
+    
+    def _fetch_from_gnews(self, limit, page):
+        """Fetch news from GNews"""
+        try:
+            url = "https://gnews.io/api/v4/top-headlines"
+            params = {
+                'token': self.gnews_key,
+                'lang': 'en',
+                'country': 'us',
+                'max': min(limit, 10),  # GNews has lower limits
+                'page': page
+            }
+            
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            articles = []
+            for article in data.get('articles', []):
+                if article.get('title') and article.get('description'):
+                    articles.append({
+                        'title': article['title'],
+                        'summary': article['description'][:200] + '...' if len(article['description']) > 200 else article['description'],
+                        'url': article.get('url', ''),
+                        'source': article.get('source', {}).get('name', 'GNews'),
+                        'timestamp': article.get('publishedAt', ''),
+                        'image_url': article.get('image', ''),
+                        'sentiment': 'neutral',
+                        'confidence': 0.0
+                    })
+            
+            return articles
+            
+        except Exception as e:
+            logger.error(f"GNews error: {e}")
+            return []
+    
+    def _fetch_from_currents(self, limit, page):
+        """Fetch news from Currents API"""
+        try:
+            url = "https://api.currentsapi.services/v1/latest-news"
+            params = {
+                'apiKey': self.currents_key,
+                'language': 'en',
+                'page_size': min(limit, 200),
+                'page': page
+            }
+            
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            articles = []
+            for article in data.get('news', []):
+                if article.get('title') and article.get('description'):
+                    articles.append({
+                        'title': article['title'],
+                        'summary': article['description'][:200] + '...' if len(article['description']) > 200 else article['description'],
+                        'url': article.get('url', ''),
+                        'source': 'Currents',
+                        'timestamp': article.get('published', ''),
+                        'image_url': article.get('image', ''),
+                        'sentiment': 'neutral',
+                        'confidence': 0.0
+                    })
+            
+            return articles
+            
+        except Exception as e:
+            logger.error(f"Currents API error: {e}")
+            return []
+    
+    def _fetch_from_rss(self, limit):
+        """Fallback RSS feeds"""
+        try:
+            feeds = [
+                'http://feeds.bbci.co.uk/news/rss.xml',
+                'http://rss.cnn.com/rss/edition.rss',
+                'https://feeds.npr.org/1001/rss.xml'
+            ]
+            
+            articles = []
+            for feed_url in feeds:
+                if len(articles) >= limit:
+                    break
+                try:
+                    feed = feedparser.parse(feed_url)
+                    for entry in feed.entries[:limit//len(feeds)]:
+                        if len(articles) >= limit:
+                            break
+                        articles.append({
+                            'title': entry.get('title', 'No Title'),
+                            'summary': entry.get('summary', '')[:200] + '...' if len(entry.get('summary', '')) > 200 else entry.get('summary', ''),
+                            'url': entry.get('link', ''),
+                            'source': feed.feed.get('title', 'RSS Feed'),
+                            'timestamp': entry.get('published', ''),
+                            'image_url': '',
+                            'sentiment': 'neutral',
+                            'confidence': 0.0
+                        })
+                except Exception as e:
+                    logger.error(f"RSS feed error for {feed_url}: {e}")
+                    continue
+            
+            return articles
+            
+        except Exception as e:
+            logger.error(f"RSS fallback error: {e}")
+            return []
+
+# Initialize real news API
+real_news_api = RealNewsAPI()
+
+# X/Twitter API Integration Class
+class TwitterAPI:
+    """Basic Twitter API integration for sentiment analysis"""
+    
+    def __init__(self):
+        self.api_key = os.getenv('X_API_KEY') or os.getenv('TWITTER_API_KEY')
+        self.api_secret = os.getenv('X_API_SECRET') or os.getenv('TWITTER_API_SECRET')
+        self.session = requests.Session()
+        
+    def get_trending_tweets(self, limit=20):
+        """Get trending tweets (mock implementation for now)"""
+        # Note: X API v2 requires OAuth 2.0 and is more complex
+        # This is a simplified mock that could be expanded with proper Twitter API integration
+        mock_tweets = [
+            {
+                'text': 'Exciting developments in AI technology are transforming how we analyze sentiment!',
+                'author': 'TechNews',
+                'timestamp': datetime.now().isoformat(),
+                'likes': 150,
+                'retweets': 45
+            },
+            {
+                'text': 'Market volatility continues as investors react to new economic data.',
+                'author': 'MarketWatch',
+                'timestamp': datetime.now().isoformat(),
+                'likes': 89,
+                'retweets': 23
+            },
+            {
+                'text': 'Beautiful sunset today! Nature never fails to inspire positive thoughts.',
+                'author': 'NatureLover',
+                'timestamp': datetime.now().isoformat(),
+                'likes': 234,
+                'retweets': 67
+            }
+        ]
+        
+        # Analyze sentiment for each tweet
+        for tweet in mock_tweets:
+            sentiment_result = nlp_engine.analyze_sentiment(tweet['text'], model_preference='fast')
+            tweet['sentiment'] = sentiment_result.sentiment
+            tweet['confidence'] = sentiment_result.confidence
+        
+        return mock_tweets[:limit]
+
+# Initialize Twitter API
+twitter_api = TwitterAPI()
+
 # Configuration
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
@@ -124,10 +365,20 @@ class Config:
     DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 104857600))  # 100MB
     
-    # API Keys
+    # News API Keys
     NEWSAPI_KEY = os.getenv('NEWSAPI_KEY')
-    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    GNEWS_API_KEY = os.getenv('GNEWS_API_KEY')
+    CURRENTS_API_KEY = os.getenv('CURRENTS_API_KEY')
+    
+    # Social Media API Keys
+    X_API_KEY = os.getenv('X_API_KEY')
+    X_API_SECRET = os.getenv('X_API_SECRET')
+    TWITTER_API_KEY = os.getenv('TWITTER_API_KEY')  # Alternative naming
+    TWITTER_API_SECRET = os.getenv('TWITTER_API_SECRET')  # Alternative naming
+    
+    # AI/ML API Keys
     HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -244,7 +495,7 @@ def dashboard():
     
     # Get cached data for better performance
     sentiment_data = get_cached_sentiment_data("main_dashboard")
-    stats = db_manager.get_dashboard_summary()
+    stats = real_db_manager.get_dashboard_summary()
     trend_analysis = generate_trend_analysis()
     
     html_template = """
@@ -778,6 +1029,116 @@ def dashboard():
                 text-align: center;
                 cursor: pointer;
                 transition: all var(--transition-normal) var(--ease);
+            }
+
+            .file-drop-zone:hover {
+                border-color: var(--primary);
+                background: var(--glass);
+            }
+
+            /* Social Media Styles */
+            .social-stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .stat-card {
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                border-radius: var(--border-radius);
+                padding: 1.5rem;
+                text-align: center;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--primary);
+                margin-bottom: 0.5rem;
+            }
+
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .social-controls {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .tweet-card {
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                border-radius: var(--border-radius);
+                padding: 1rem;
+                margin-bottom: 1rem;
+                transition: all var(--transition-normal) var(--ease);
+            }
+
+            .tweet-card:hover {
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-lg);
+            }
+
+            .tweet-header {
+                display: flex;
+                justify-content: between;
+                align-items: center;
+                margin-bottom: 0.75rem;
+            }
+
+            .tweet-author {
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+
+            .tweet-time {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+
+            .tweet-text {
+                margin-bottom: 0.75rem;
+                line-height: 1.5;
+            }
+
+            .tweet-meta {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+
+            .sentiment-badge {
+                padding: 0.25rem 0.75rem;
+                border-radius: 999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            .sentiment-positive {
+                background: rgba(34, 197, 94, 0.2);
+                color: #22c55e;
+            }
+
+            .sentiment-negative {
+                background: rgba(239, 68, 68, 0.2);
+                color: #ef4444;
+            }
+
+            .sentiment-neutral {
+                background: rgba(156, 163, 175, 0.2);
+                color: #9ca3af;
+            }
+                transition: all var(--transition-normal) var(--ease);
                 background: var(--glass);
             }
 
@@ -1051,6 +1412,10 @@ def dashboard():
                         <i class="fas fa-newspaper"></i>
                         News
                     </button>
+                    <button class="tab-btn" onclick="switchTab('social', this)">
+                        <i class="fab fa-twitter"></i>
+                        Social Media
+                    </button>
                     <button class="tab-btn" onclick="switchTab('media', this)">
                         <i class="fas fa-video"></i>
                         Media
@@ -1203,6 +1568,40 @@ def dashboard():
                             </div>
                             <div class="pagination-container" id="news-pagination">
                                 <!-- Pagination will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Social Media Tab - Twitter Integration -->
+                    <div id="social" class="tab-pane">
+                        <div class="glass-card">
+                            <h3 class="mb-4">
+                                <i class="fab fa-twitter text-primary"></i>
+                                Social Media Sentiment
+                            </h3>
+                            <div class="social-stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="total-tweets">0</div>
+                                    <div class="stat-label">Tweets Analyzed</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="avg-sentiment">0%</div>
+                                    <div class="stat-label">Avg Sentiment</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="engagement-rate">0%</div>
+                                    <div class="stat-label">Engagement Rate</div>
+                                </div>
+                            </div>
+                            
+                            <div class="social-controls mb-4">
+                                <button onclick="loadTweets()" class="glass-btn primary">
+                                    <i class="fas fa-sync-alt"></i> Refresh Tweets
+                                </button>
+                            </div>
+                            
+                            <div id="tweets-container">
+                                <!-- Tweets will be loaded here via AJAX -->
                             </div>
                         </div>
                     </div>
@@ -1711,6 +2110,69 @@ def dashboard():
             container.innerHTML = paginationHTML;
         }
         
+        // Social Media Functions
+        function loadTweets() {
+            fetch('/api/social/tweets?limit=20')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('tweets-container');
+                    const tweets = data.tweets || [];
+                    
+                    if (tweets.length === 0) {
+                        container.innerHTML = '<p class="text-secondary">No tweets available at the moment.</p>';
+                        return;
+                    }
+                    
+                    container.innerHTML = tweets.map(tweet => `
+                        <div class="tweet-card">
+                            <div class="tweet-header">
+                                <span class="tweet-author">@${tweet.author}</span>
+                                <span class="tweet-time">${formatTime(tweet.timestamp)}</span>
+                            </div>
+                            <div class="tweet-text">${tweet.text}</div>
+                            <div class="tweet-meta">
+                                <div>
+                                    <i class="fas fa-heart"></i> ${tweet.likes || 0}
+                                    <i class="fas fa-retweet ml-2"></i> ${tweet.retweets || 0}
+                                </div>
+                                <span class="sentiment-badge sentiment-${tweet.sentiment}">
+                                    ${tweet.sentiment} (${Math.round(tweet.confidence * 100)}%)
+                                </span>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    // Update stats
+                    updateSocialStats(tweets);
+                })
+                .catch(error => {
+                    console.error('Error loading tweets:', error);
+                    document.getElementById('tweets-container').innerHTML = '<p class="text-error">Failed to load tweets.</p>';
+                });
+        }
+        
+        function updateSocialStats(tweets) {
+            const totalTweets = tweets.length;
+            const sentiments = tweets.map(t => t.sentiment);
+            const positiveCount = sentiments.filter(s => s === 'positive').length;
+            const avgSentiment = Math.round((positiveCount / totalTweets) * 100) || 0;
+            const totalEngagement = tweets.reduce((sum, tweet) => sum + (tweet.likes || 0) + (tweet.retweets || 0), 0);
+            const avgEngagement = Math.round(totalEngagement / totalTweets) || 0;
+            
+            document.getElementById('total-tweets').textContent = totalTweets;
+            document.getElementById('avg-sentiment').textContent = `${avgSentiment}%`;
+            document.getElementById('engagement-rate').textContent = `${avgEngagement}`;
+        }
+        
+        function formatTime(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString();
+            } catch (e) {
+                return 'Just now';
+            }
+        }
+        
         // Video Metadata Extractor Functions
         function toggleMediaInput(type) {
             document.querySelectorAll('.media-toggle-btn').forEach(btn => btn.classList.remove('active'));
@@ -1883,6 +2345,9 @@ def dashboard():
             // Load news data for the news tab
             loadNews(1);
             
+            // Load social media data for the social tab
+            loadTweets();
+            
             // Add keyboard shortcuts
             document.addEventListener('keydown', function(e) {
                 // Ctrl/Cmd + Enter to analyze sentiment
@@ -1927,45 +2392,33 @@ def get_news():
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
         
-        # Sample news data - replace with actual news fetching
-        sample_news = [
-            {
-                'title': 'Breaking: AI Breakthrough in Sentiment Analysis',
-                'summary': 'Researchers achieve 99% accuracy in real-time emotion detection...',
-                'sentiment': 'positive',
-                'timestamp': '2024-01-15 14:30:00',
-                'url': 'https://example.com/news/1'
-            },
-            {
-                'title': 'Market Update: Tech Stocks Show Mixed Signals',
-                'summary': 'Technology sector experiences volatility amid regulatory concerns...',
-                'sentiment': 'neutral',
-                'timestamp': '2024-01-15 13:45:00',
-                'url': 'https://example.com/news/2'
-            },
-            {
-                'title': 'Study: Social Media Impact on Mental Health',
-                'summary': 'New research reveals concerning trends in digital wellness...',
-                'sentiment': 'negative',
-                'timestamp': '2024-01-15 12:20:00',
-                'url': 'https://example.com/news/3'
-            }
-        ] * 10  # Simulate more news items
+        # Fetch real news using our API integration
+        articles = real_news_api.get_trending_news(limit, page)
         
-        # Calculate pagination
-        total_items = len(sample_news)
-        total_pages = math.ceil(total_items / limit)
-        start_idx = (page - 1) * limit
-        end_idx = start_idx + limit
+        # Analyze sentiment for each article
+        for article in articles:
+            if article.get('title') and article.get('summary'):
+                # Combine title and summary for sentiment analysis
+                text_to_analyze = f"{article['title']} {article['summary']}"
+                
+                # Analyze sentiment using NLP engine
+                sentiment_result = nlp_engine.analyze_sentiment(text_to_analyze, model_preference='fast')
+                
+                # Update article with sentiment data
+                article['sentiment'] = sentiment_result.sentiment
+                article['confidence'] = sentiment_result.confidence
         
-        paginated_news = sample_news[start_idx:end_idx]
+        # Calculate pagination info
+        total_items = len(articles) * 5  # Estimate for pagination
+        total_pages = math.ceil(total_items / limit) if total_items > 0 else 1
         
         return jsonify({
-            'items': paginated_news,
+            'items': articles,
             'page': page,
             'limit': limit,
             'total_items': total_items,
-            'total_pages': total_pages
+            'total_pages': total_pages,
+            'sources_used': list(set([article.get('source', 'Unknown') for article in articles]))
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1989,7 +2442,7 @@ def extract_metadata_from_url():
         
         # Use the enhanced video metadata extractor
         try:
-            metadata = video_extractor.extract_from_url(url)
+            metadata = real_video_extractor.extract_from_url(url)
             
             # Ensure we return properly formatted data
             if not metadata or 'error' in metadata:
@@ -2058,7 +2511,7 @@ def extract_metadata_from_file():
                 
                 # Extract metadata from file
                 try:
-                    metadata = video_extractor.extract_from_file(tmp_file.name)
+                    metadata = real_video_extractor.extract_from_file(tmp_file.name)
                     
                     if not metadata or 'error' in metadata:
                         return jsonify({
@@ -2257,7 +2710,7 @@ def analyze_sentiment_mock(text):
 def get_statistics():
     """Get enhanced dashboard statistics"""
     try:
-        stats = db_manager.get_dashboard_summary()
+        stats = real_db_manager.get_dashboard_summary()
         return jsonify(stats)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2288,6 +2741,62 @@ def get_word_cloud_data():
         return jsonify(words)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/social/tweets')
+def get_tweets():
+    """Get trending tweets with sentiment analysis"""
+    try:
+        limit = int(request.args.get('limit', 10))
+        tweets = twitter_api.get_trending_tweets(limit)
+        
+        return jsonify({
+            'tweets': tweets,
+            'total': len(tweets),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Twitter API error: {e}")
+        return jsonify({'error': 'Failed to fetch tweets'}), 500
+
+@app.route('/api/analytics/summary')
+def get_analytics_summary():
+    """Get comprehensive analytics summary"""
+    try:
+        # Get data from multiple sources
+        news_data = real_news_api.get_trending_news(10)
+        tweets_data = twitter_api.get_trending_tweets(10)
+        
+        # Calculate overall sentiment distribution
+        all_sentiments = []
+        for item in news_data + tweets_data:
+            if item.get('sentiment'):
+                all_sentiments.append(item['sentiment'])
+        
+        sentiment_counts = {
+            'positive': all_sentiments.count('positive'),
+            'negative': all_sentiments.count('negative'),
+            'neutral': all_sentiments.count('neutral')
+        }
+        
+        total_items = len(all_sentiments)
+        sentiment_percentages = {
+            'positive': (sentiment_counts['positive'] / total_items * 100) if total_items > 0 else 0,
+            'negative': (sentiment_counts['negative'] / total_items * 100) if total_items > 0 else 0,
+            'neutral': (sentiment_counts['neutral'] / total_items * 100) if total_items > 0 else 0
+        }
+        
+        return jsonify({
+            'sentiment_distribution': sentiment_percentages,
+            'total_analyzed': total_items,
+            'sources': {
+                'news_articles': len(news_data),
+                'tweets': len(tweets_data)
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Analytics summary error: {e}")
+        return jsonify({'error': 'Failed to generate analytics summary'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))
