@@ -2605,17 +2605,35 @@ def analyze_text_route():
         if not text:
             return jsonify({'error': 'Text is required'}), 400
         
+        if len(text) > 5000:
+            return jsonify({'error': 'Text too long (max 5000 characters)'}), 400
+        
         # Use NLP engine for analysis
         result = nlp_engine.analyze_sentiment(text)
         
-        # Add timestamp and enhanced metadata
-        result['timestamp'] = datetime.now().isoformat()
-        result['text_length'] = len(text)
-        result['word_count'] = len(text.split())
+        # Convert result object to dictionary
+        response_data = {
+            'success': True,
+            'text': result.text,
+            'sentiment': result.sentiment,
+            'confidence': result.confidence,
+            'scores': result.scores,
+            'model_used': result.model_used,
+            'processing_time': result.processing_time,
+            'emotion_scores': getattr(result, 'emotion_scores', {}),
+            'toxicity_score': getattr(result, 'toxicity_score', 0.0),
+            'timestamp': datetime.now().isoformat(),
+            'text_length': len(text),
+            'word_count': len(text.split())
+        }
         
-        return jsonify(result)
+        # Save to database
+        real_db_manager.save_sentiment_analysis(result)
+        
+        return jsonify(response_data)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Analysis error: {e}")
+        return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
 
 @app.route('/api/sentiment/test', methods=['POST'])
 def test_sentiment():

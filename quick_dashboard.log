@@ -1,0 +1,16 @@
+2025-08-31 02:23:40,159 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5003
+ * Running on http://192.168.245.181:5003
+2025-08-31 02:23:40,160 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-31 02:23:40,175 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:23:41,220 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:23:41,223 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:24:17,581 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_database.py', reloading
+2025-08-31 02:24:17,582 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:24:17,582 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:24:17,583 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_database.py', reloading
+2025-08-31 02:24:17,584 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:24:18,409 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:24:20,163 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:24:20,166 - werkzeug - INFO -  * Debugger PIN: 131-551-071

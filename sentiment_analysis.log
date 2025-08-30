@@ -1,0 +1,132 @@
+2025-08-31 02:19:02,052 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5003
+ * Running on http://192.168.245.181:5003
+2025-08-31 02:19:02,052 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-31 02:19:02,075 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:19:59,120 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:19:59,126 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:19:59,189 - __main__ - INFO - Starting Real Sentiment Analysis Dashboard
+2025-08-31 02:19:59,196 - __main__ - INFO - Real components available: False
+2025-08-31 02:19:59,197 - __main__ - INFO - Using mock components for development
+2025-08-31 02:19:59,201 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:19:59] "GET / HTTP/1.1" 200 -
+2025-08-31 02:20:03,716 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:20:03] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:20:05,426 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:20:05] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-08-31 02:20:06,577 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:20:06] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:20:18,172 - werkzeug - INFO - 192.168.245.181 - - [31/Aug/2025 02:20:18] "GET / HTTP/1.1" 200 -
+2025-08-31 02:20:19,600 - werkzeug - INFO - 192.168.245.181 - - [31/Aug/2025 02:20:19] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:20:20,291 - werkzeug - INFO - 192.168.245.181 - - [31/Aug/2025 02:20:20] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-08-31 02:20:20,687 - werkzeug - INFO - 192.168.245.181 - - [31/Aug/2025 02:20:20] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:20:27,811 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:20:28,286 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:20:28,291 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:20:33,048 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:21:23,413 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:21:23,419 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:21:23,483 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:21:23] "[35m[1mPOST /api/analyze HTTP/1.1[0m" 500 -
+2025-08-31 02:21:50,706 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:21:50] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:21:58,152 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:21:58] "GET /api/news?page=2&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:22:11,537 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:22:11] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:22:16,099 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:22:16] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:22:37,963 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:22:37] "[35m[1mPOST /api/analyze HTTP/1.1[0m" 500 -
+2025-08-31 02:22:56,317 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:22:56] "POST /api/media/extract HTTP/1.1" 200 -
+2025-08-31 02:23:14,391 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:23:14] "POST /api/media/extract-url HTTP/1.1" 200 -
+2025-08-31 02:23:55,495 - __main__ - INFO - Starting Real Sentiment Analysis Dashboard
+2025-08-31 02:23:55,495 - __main__ - INFO - Real components available: False
+2025-08-31 02:23:55,495 - __main__ - INFO - Using mock components for development
+2025-08-31 02:23:55,496 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:23:55] "GET /?id=63a6fccf-4946-483c-bfb4-1f0a4855d10b&vscodeBrowserReqId=1756596235180 HTTP/1.1" 200 -
+2025-08-31 02:23:55,962 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:23:55] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:23:56,786 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:23:56] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:24:00,893 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:24:00] "GET / HTTP/1.1" 200 -
+2025-08-31 02:24:02,089 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:24:02] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:24:03,120 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:24:03] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:24:07,742 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:24:07] "[35m[1mPOST /api/analyze HTTP/1.1[0m" 500 -
+2025-08-31 02:24:17,581 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_database.py', reloading
+2025-08-31 02:24:17,582 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:24:17,582 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_database.py', reloading
+2025-08-31 02:24:17,583 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:24:20,306 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:24:48,837 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:24:48,841 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:25:13,797 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:25:13,798 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:25:13,800 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:25:17,630 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:25:47,401 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:25:47,405 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:25:47,459 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:25:47] "[35m[1mPOST /api/analyze HTTP/1.1[0m" 500 -
+2025-08-31 02:26:08,212 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:26:08,213 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\quick_dashboard.py', reloading
+2025-08-31 02:26:11,384 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:26:38,996 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:26:38,999 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:26:39,028 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:26:39] "[35m[1mPOST /api/analyze HTTP/1.1[0m" 500 -
+2025-08-31 02:32:46,879 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5003
+ * Running on http://192.168.245.181:5003
+2025-08-31 02:32:46,880 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-31 02:32:46,891 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:33:24,969 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:33:24,975 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:33:25,057 - __main__ - INFO - Starting Real Sentiment Analysis Dashboard
+2025-08-31 02:33:25,070 - __main__ - INFO - Real components available: False
+2025-08-31 02:33:25,072 - __main__ - INFO - Using mock components for development
+2025-08-31 02:33:25,079 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:25] "GET / HTTP/1.1" 200 -
+2025-08-31 02:33:27,071 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:27] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:33:29,185 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:29] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:33:39,839 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:39] "[35m[1mPOST /api/analyze HTTP/1.1[0m" 500 -
+2025-08-31 02:33:48,014 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:48] "GET /?id=63a6fccf-4946-483c-bfb4-1f0a4855d10b&vscodeBrowserReqId=1756596827691 HTTP/1.1" 200 -
+2025-08-31 02:33:48,423 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:48] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:33:49,381 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:49] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:33:54,062 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:33:54] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:33:56,796 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\test_original.py', reloading
+2025-08-31 02:33:57,221 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\test_original.py', reloading
+2025-08-31 02:33:57,222 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\test_original.py', reloading
+2025-08-31 02:33:57,223 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\test_original.py', reloading
+2025-08-31 02:34:01,737 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:34:41,322 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:34:41,327 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:34:41,365 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:34:41] "POST /api/analyze HTTP/1.1" 200 -
+2025-08-31 02:34:57,586 - __main__ - INFO - Starting Real Sentiment Analysis Dashboard
+2025-08-31 02:34:57,587 - __main__ - INFO - Real components available: False
+2025-08-31 02:34:57,587 - __main__ - INFO - Using mock components for development
+2025-08-31 02:34:57,589 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:34:57] "GET / HTTP/1.1" 200 -
+2025-08-31 02:35:00,107 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:35:00] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:35:00,811 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:35:00] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-08-31 02:35:01,221 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:35:01] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:35:09,673 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:35:09] "POST /api/analyze HTTP/1.1" 200 -
+2025-08-31 02:36:01,105 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5003
+ * Running on http://192.168.245.181:5003
+2025-08-31 02:36:01,105 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-31 02:36:01,116 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:36:28,631 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:36:28,637 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:36:28,709 - __main__ - INFO - Starting Real Sentiment Analysis Dashboard
+2025-08-31 02:36:28,720 - __main__ - INFO - Real components available: False
+2025-08-31 02:36:28,721 - __main__ - INFO - Starting Real Sentiment Analysis Dashboard
+2025-08-31 02:36:28,721 - __main__ - INFO - Using mock components for development
+2025-08-31 02:36:28,722 - __main__ - INFO - Real components available: False
+2025-08-31 02:36:28,725 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:28] "GET /?id=63a6fccf-4946-483c-bfb4-1f0a4855d10b&vscodeBrowserReqId=1756596964035 HTTP/1.1" 200 -
+2025-08-31 02:36:28,727 - __main__ - INFO - Using mock components for development
+2025-08-31 02:36:28,730 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:28] "POST /api/analyze HTTP/1.1" 200 -
+2025-08-31 02:36:28,734 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:28] "GET /?id=63a6fccf-4946-483c-bfb4-1f0a4855d10b&vscodeBrowserReqId=1756596965629 HTTP/1.1" 200 -
+2025-08-31 02:36:28,737 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:28] "POST /api/analyze HTTP/1.1" 200 -
+2025-08-31 02:36:29,164 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:29] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:36:30,889 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:30] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:36:47,799 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:47] "POST /api/analyze HTTP/1.1" 200 -
+2025-08-31 02:36:57,563 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:57] "GET /?id=63a6fccf-4946-483c-bfb4-1f0a4855d10b&vscodeBrowserReqId=1756597017244 HTTP/1.1" 200 -
+2025-08-31 02:36:57,913 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:57] "GET /api/social/tweets?limit=20 HTTP/1.1" 200 -
+2025-08-31 02:36:58,871 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:36:58] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:37:46,466 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 02:37:46] "GET /api/news?page=1&limit=10 HTTP/1.1" 200 -
+2025-08-31 02:37:55,289 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\dashboard.py', reloading
+2025-08-31 02:37:55,290 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\dashboard.py', reloading
+2025-08-31 02:37:55,290 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\dashboard.py', reloading
+2025-08-31 02:37:55,305 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\test_original.py', reloading
+2025-08-31 02:37:55,306 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\test_original.py', reloading
+2025-08-31 02:37:55,307 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\test_original.py', reloading
+2025-08-31 02:37:58,047 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:38:22,690 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:38:22,695 - werkzeug - INFO -  * Debugger PIN: 131-551-071

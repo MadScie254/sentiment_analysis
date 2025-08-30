@@ -34,7 +34,7 @@ class SentimentAnalysis(db.Model):
     emotion_scores = db.Column(db.JSON)
     toxicity_score = db.Column(db.Float)
     bias_score = db.Column(db.Float)
-    metadata = db.Column(db.JSON)
+    analysis_metadata = db.Column(db.JSON)  # Renamed from 'metadata' to avoid SQLAlchemy conflict
     
     # Analytics fields
     ip_address = db.Column(db.String(45))
@@ -58,7 +58,7 @@ class SentimentAnalysis(db.Model):
             'emotion_scores': self.emotion_scores,
             'toxicity_score': self.toxicity_score,
             'bias_score': self.bias_score,
-            'metadata': self.metadata,
+            'analysis_metadata': self.analysis_metadata,
             'source': self.source,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
@@ -105,7 +105,7 @@ class VideoMetadata(db.Model):
     transcript = db.Column(db.Text)
     sentiment = db.Column(db.String(20))
     confidence = db.Column(db.Float)
-    metadata = db.Column(db.JSON)
+    video_metadata = db.Column(db.JSON)  # Renamed from 'metadata' to avoid SQLAlchemy conflict
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -119,7 +119,7 @@ class VideoMetadata(db.Model):
             'transcript': self.transcript[:500] + "..." if self.transcript and len(self.transcript) > 500 else self.transcript,
             'sentiment': self.sentiment,
             'confidence': self.confidence,
-            'metadata': self.metadata,
+            'video_metadata': self.video_metadata,
             'created_at': self.created_at.isoformat()
         }
 
@@ -176,7 +176,7 @@ class RealDatabaseManager:
                 emotion_scores=result.emotion_scores,
                 toxicity_score=result.toxicity_score,
                 bias_score=result.bias_score,
-                metadata=result.metadata,
+                analysis_metadata=result.analysis_metadata,
                 ip_address=ip_address,
                 user_agent=user_agent,
                 source=source
@@ -328,7 +328,7 @@ class RealDatabaseManager:
             self.logger.error(f"Error fetching news articles: {str(e)}")
             return []
     
-    def save_video_metadata(self, title=None, url=None, duration=None, file_path=None, transcript=None, metadata=None):
+    def save_video_metadata(self, title=None, url=None, duration=None, file_path=None, transcript=None, video_metadata=None):
         """Save video metadata"""
         try:
             video = VideoMetadata(
@@ -337,7 +337,7 @@ class RealDatabaseManager:
                 duration=duration,
                 file_path=file_path,
                 transcript=transcript,
-                metadata=metadata
+                video_metadata=video_metadata
             )
             
             db.session.add(video)
