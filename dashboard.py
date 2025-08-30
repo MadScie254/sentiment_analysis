@@ -1,102 +1,172 @@
-#!/usr/bin/env python3
 """
-Enhanced Sentiment Analysis Dashboard with Stable Charts and Video Metadata Extraction
-Fixed: Scroll/Graph Growing & Infinite Auto-scroll Bug
-Added: Video Metadata Extractor for URLs and Files
-Added: Comprehensive Tabbed Layout with Pagination
+Real-time Sentiment Analysis Dashboard
+Production-ready Flask application with real ML models and APIs
 """
 
 import os
-import math
+import sys
 import json
 import tempfile
+import logging
 from datetime import datetime, timedelta
 from threading import Lock
 from functools import lru_cache
-from flask import Flask, render_template_string, request, jsonify
-from video_metadata import VideoMetadataExtractor
+from typing import Dict, List, Optional
 
-# Enhanced imports for better functionality
+# Flask and web components
+from flask import Flask, render_template_string, request, jsonify, send_file
+from flask_cors import CORS
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
+# Real components
 try:
-    from ui_generator import UIGenerator
-    from database_manager import DatabaseManager
-    from nlp_engine import NLPEngine
-    from config import Config
+    from real_nlp_engine import nlp_engine, RealNLPEngine
+    from real_database import real_db_manager, db
+    from real_news_scraper import news_scraper, get_sample_news_data
+    from real_video_extractor import real_video_extractor
+    REAL_COMPONENTS_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: Could not import module: {e}")
-    # Create mock classes for testing
-    class UIGenerator:
-        @staticmethod
-        def generate_dashboard_html(*args, **kwargs):
-            return "<div>Mock Dashboard</div>"
+    print(f"Warning: Could not import real components: {e}")
+    REAL_COMPONENTS_AVAILABLE = False
+
+# Fallback components for development
+if not REAL_COMPONENTS_AVAILABLE:
+    # Mock classes for fallback
+    class MockNLPEngine:
+        def analyze_sentiment(self, text, model_preference='auto'):
+            return type('SentimentResult', (), {
+                'text': text[:200],
+                'sentiment': 'positive',
+                'confidence': 0.85,
+                'scores': {'positive': 0.7, 'negative': 0.1, 'neutral': 0.2},
+                'model_used': 'mock',
+                'processing_time': 0.1,
+                'language': 'en',
+                'emotion_scores': {'joy': 0.8, 'anger': 0.1},
+                'toxicity_score': 0.1,
+                'bias_score': 0.2,
+                'metadata': {'mock': True}
+            })()
+        
+        def get_model_info(self):
+            return {'available_models': ['mock'], 'device': 'cpu'}
     
-    class DatabaseManager:
-        def get_dashboard_summary(self):
-            return {'today': {'total_analyses': 42, 'avg_confidence': 0.85, 'unique_sources': 4, 'ai_insights': 23}}
-    
-    class NLPEngine:
-        def analyze_sentiment(self, text):
-            """Enhanced sentiment analysis with realistic keyword-based detection"""
-            import random
-            import hashlib
-            
-            # Use text hash for consistent results
-            text_hash = hashlib.md5(text.encode()).hexdigest()
-            random.seed(int(text_hash[:8], 16))
-            
-            # Keyword-based sentiment detection
-            positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'best', 'awesome', 'perfect', 'happy', 'joy', 'brilliant', 'outstanding', 'superb']
-            negative_words = ['bad', 'terrible', 'awful', 'horrible', 'hate', 'worst', 'disgusting', 'pathetic', 'useless', 'failed', 'sad', 'angry', 'disappointed', 'frustrated', 'annoying']
-            
-            text_lower = text.lower()
-            pos_count = sum(1 for word in positive_words if word in text_lower)
-            neg_count = sum(1 for word in negative_words if word in text_lower)
-            
-            # Determine sentiment based on keyword analysis
-            if pos_count > neg_count:
-                sentiment = 'positive'
-                confidence = min(0.7 + (pos_count - neg_count) * 0.05, 0.95)
-                toxicity = random.uniform(0.05, 0.15)
-            elif neg_count > pos_count:
-                sentiment = 'negative'
-                confidence = min(0.7 + (neg_count - pos_count) * 0.05, 0.95)
-                toxicity = random.uniform(0.2, 0.4)
-            else:
-                sentiment = 'neutral'
-                confidence = random.uniform(0.5, 0.7)
-                toxicity = random.uniform(0.1, 0.2)
-            
-            # Adjust based on text characteristics
-            word_count = len(text.split())
-            if word_count < 5:
-                confidence *= 0.8
-            elif word_count > 50:
-                confidence = min(confidence * 1.1, 0.95)
-            
+    class MockDatabaseManager:
+        def save_sentiment_analysis(self, result, **kwargs):
+            return 1
+        
+        def get_recent_analyses(self, limit=50, offset=0):
+            return []
+        
+        def get_analytics_summary(self, days=7):
             return {
-                'sentiment': sentiment, 
-                'confidence': round(confidence, 3), 
-                'toxicity': round(toxicity, 3)
+                'total_analyses': 0,
+                'sentiment_distribution': {'positive': 0, 'negative': 0, 'neutral': 0},
+                'average_confidence': 0.0,
+                'daily_trends': []
+            }
+        
+        def get_dashboard_summary(self):
+            return {
+                'today': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'mock'},
+                'week': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'mock'}
+            }
+        
+        def init_app(self, app):
+            pass
+    
+    class MockVideoExtractor:
+        def extract_from_file(self, file_path):
+            return {
+                'title': 'Mock Video',
+                'duration': 120,
+                'width': 1920,
+                'height': 1080,
+                'file_size': 1000000,
+                'transcript': 'This is a mock transcript'
+            }
+        
+        def extract_from_url(self, url):
+            return {
+                'title': 'Mock Video from URL',
+                'duration': 180,
+                'url': url,
+                'view_count': 1000
             }
     
-    class Config:
-        SECRET_KEY = 'dev-key-change-in-production'
-        ENVIRONMENT = 'development'
+    # Use mock components
+    nlp_engine = MockNLPEngine()
+    real_db_manager = MockDatabaseManager()
+    real_video_extractor = MockVideoExtractor()
+    
+    def get_sample_news_data(limit=20):
+        return [
+            {
+                'title': 'Mock News Article',
+                'url': 'https://example.com/news',
+                'description': 'This is a mock news article for testing',
+                'published': datetime.now(),
+                'source': 'MockNews',
+                'sentiment': 'positive',
+                'confidence': 0.8
+            }
+        ]
 
-# Initialize Flask app with enhanced configuration
+# Configuration
+class Config:
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///sentiment_analysis.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    ENVIRONMENT = os.getenv('FLASK_ENV', 'development')
+    DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 104857600))  # 100MB
+    
+    # API Keys
+    NEWSAPI_KEY = os.getenv('NEWSAPI_KEY')
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
+
+# Initialize Flask app
 app = Flask(__name__)
-app.config['SECRET_KEY'] = Config.SECRET_KEY
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file upload
+app.config.from_object(Config)
+CORS(app)
 
-# Initialize components
-db_manager = DatabaseManager()
-nlp_engine = NLPEngine()
-ui_generator = UIGenerator()
-video_extractor = VideoMetadataExtractor()
+# Initialize database
+if REAL_COMPONENTS_AVAILABLE:
+    db.init_app(app)
 
-# Thread-safe cache for performance
+# Logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('sentiment_analysis.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+# Thread-safe cache
 cache_lock = Lock()
 sentiment_cache = {}
+
+# Application startup
+@app.before_first_request
+def startup():
+    """Initialize application on first request"""
+    logger.info("Starting Real Sentiment Analysis Dashboard")
+    logger.info(f"Real components available: {REAL_COMPONENTS_AVAILABLE}")
+    
+    if REAL_COMPONENTS_AVAILABLE:
+        with app.app_context():
+            db.create_all()
+        model_info = nlp_engine.get_model_info()
+        logger.info(f"NLP Models available: {model_info['available_models']}")
+        logger.info(f"Processing device: {model_info['device']}")
 
 @lru_cache(maxsize=128)
 def get_cached_sentiment_data(cache_key):
