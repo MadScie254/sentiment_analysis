@@ -38,6 +38,14 @@ except ImportError as e:
     print(f"Warning: Could not import real components: {e}")
     REAL_COMPONENTS_AVAILABLE = False
 
+# Simple fallback database class
+class SimpleDB:
+    def init_app(self, app):
+        pass
+    
+    def create_all(self):
+        pass
+
 # Fallback components for development
 if not REAL_COMPONENTS_AVAILABLE:
     # Mock classes for fallback
@@ -107,6 +115,7 @@ if not REAL_COMPONENTS_AVAILABLE:
     nlp_engine = MockNLPEngine()
     real_db_manager = MockDatabaseManager()
     real_video_extractor = MockVideoExtractor()
+    db = SimpleDB()  # Simple database fallback
     
     def get_sample_news_data(limit=20):
         return [
@@ -380,13 +389,31 @@ class Config:
     HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
+# Logging configuration - early setup
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('sentiment_analysis.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
 
-# Initialize database
+# Initialize database if real components are available
 if REAL_COMPONENTS_AVAILABLE:
+    try:
+        db.init_app(app)
+    except Exception as e:
+        logger.warning(f"Database initialization failed: {e}")
+else:
+    # Initialize fallback database
     db.init_app(app)
 
 # Logging configuration
@@ -405,19 +432,31 @@ logger = logging.getLogger(__name__)
 cache_lock = Lock()
 sentiment_cache = {}
 
-# Application startup
-@app.before_first_request
-def startup():
-    """Initialize application on first request"""
+# Application initialization flag
+_app_initialized = False
+
+def initialize_app():
+    """Initialize application components"""
+    global _app_initialized
+    if _app_initialized:
+        return
+    
     logger.info("Starting Real Sentiment Analysis Dashboard")
     logger.info(f"Real components available: {REAL_COMPONENTS_AVAILABLE}")
     
     if REAL_COMPONENTS_AVAILABLE:
-        with app.app_context():
-            db.create_all()
-        model_info = nlp_engine.get_model_info()
-        logger.info(f"NLP Models available: {model_info['available_models']}")
-        logger.info(f"Processing device: {model_info['device']}")
+        try:
+            with app.app_context():
+                db.create_all()
+            model_info = nlp_engine.get_model_info()
+            logger.info(f"NLP Models available: {model_info['available_models']}")
+            logger.info(f"Processing device: {model_info['device']}")
+        except Exception as e:
+            logger.warning(f"Real components initialization failed: {e}")
+    else:
+        logger.info("Using mock components for development")
+    
+    _app_initialized = True
 
 @lru_cache(maxsize=128)
 def get_cached_sentiment_data(cache_key):
@@ -492,6 +531,9 @@ def generate_anomalies_html(anomalies):
 @app.route('/')
 def dashboard():
     """Enhanced immersive dashboard with stable charts and tabbed layout"""
+    
+    # Initialize app on first request
+    initialize_app()
     
     # Get cached data for better performance
     sentiment_data = get_cached_sentiment_data("main_dashboard")
