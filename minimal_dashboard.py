@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Minimal Dashboard Test - Real APIs (Fixed Encoding)
+Minimal Dashboard Test - Real APIs
 """
 
 import os
@@ -55,14 +54,49 @@ def analyze_sentiment_simple(text):
     except Exception as e:
         return {"error": f"Exception: {str(e)}"}
 
+# Simple news fetcher using NewsAPI
+def get_news_simple():
+    """Simple news fetcher using NewsAPI"""
+    api_key = os.getenv('NEWSAPI_KEY')
+    if not api_key:
+        return {"error": "No NewsAPI key"}
+    
+    try:
+        url = f"https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey={api_key}"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get('articles', [])
+            
+            # Format articles
+            formatted_articles = []
+            for article in articles:
+                formatted_articles.append({
+                    'title': article.get('title', 'No title'),
+                    'summary': article.get('description', 'No description'),
+                    'url': article.get('url', ''),
+                    'source': article.get('source', {}).get('name', 'Unknown'),
+                    'published_at': article.get('publishedAt', ''),
+                    'image_url': article.get('urlToImage', '')
+                })
+            
+            return {"articles": formatted_articles, "count": len(formatted_articles)}
+        
+        return {"error": f"NewsAPI error: {response.status_code}"}
+    
+    except Exception as e:
+        return {"error": f"Exception: {str(e)}"}
+
 @app.route('/')
 def home():
     """Home page"""
     return """
-    <h1>Real API Sentiment Dashboard</h1>
+    <h1>🎯 Real API Sentiment Dashboard</h1>
     <p>Test endpoints:</p>
     <ul>
         <li><a href="/api/test">/api/test</a> - Test API connection</li>
+        <li><a href="/api/news">/api/news</a> - Get real news</li>
         <li>POST /api/analyze - Analyze sentiment</li>
     </ul>
     
@@ -93,6 +127,9 @@ def api_test():
     keys = {
         'HUGGINGFACE_API_KEY': bool(os.getenv('HUGGINGFACE_API_KEY')),
         'NEWSAPI_KEY': bool(os.getenv('NEWSAPI_KEY')),
+        'GNEWS_API_KEY': bool(os.getenv('GNEWS_API_KEY')),
+        'CURRENTS_API_KEY': bool(os.getenv('CURRENTS_API_KEY')),
+        'TWITTER_API_KEY': bool(os.getenv('TWITTER_API_KEY'))
     }
     
     return jsonify({
@@ -129,10 +166,33 @@ def analyze():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/news')
+def news():
+    """Get real news using NewsAPI"""
+    try:
+        result = get_news_simple()
+        
+        if 'error' in result:
+            return jsonify({'success': False, 'error': result['error']}), 500
+        
+        return jsonify({
+            'success': True,
+            'items': result['articles'],
+            'total_items': result['count'],
+            'source': 'NewsAPI'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
-    print("Starting Real API Dashboard...")
-    print(f"Hugging Face: {'OK' if os.getenv('HUGGINGFACE_API_KEY') else 'NO KEY'}")
-    print(f"NewsAPI: {'OK' if os.getenv('NEWSAPI_KEY') else 'NO KEY'}")
-    print("Dashboard will be available at: http://localhost:5000")
+    print("🚀 Starting Real API Dashboard...")
+    print(f"🔑 API Keys Available:")
+    print(f"   Hugging Face: {'✅' if os.getenv('HUGGINGFACE_API_KEY') else '❌'}")
+    print(f"   NewsAPI: {'✅' if os.getenv('NEWSAPI_KEY') else '❌'}")
+    print(f"   GNews: {'✅' if os.getenv('GNEWS_API_KEY') else '❌'}")
+    print(f"   Currents: {'✅' if os.getenv('CURRENTS_API_KEY') else '❌'}")
+    print(f"   Twitter: {'✅' if os.getenv('TWITTER_API_KEY') else '❌'}")
+    print("\n🌐 Dashboard will be available at: http://localhost:5000")
     
     app.run(debug=True, host='0.0.0.0', port=5000)

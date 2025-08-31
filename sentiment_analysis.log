@@ -130,3 +130,14 @@
 2025-08-31 02:37:58,047 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
 2025-08-31 02:38:22,690 - werkzeug - WARNING -  * Debugger is active!
 2025-08-31 02:38:22,695 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:41:06,701 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_api_integration.py', reloading
+2025-08-31 02:41:07,050 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_api_integration.py', reloading
+2025-08-31 02:41:07,052 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_api_integration.py', reloading
+2025-08-31 02:41:07,057 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\real_api_integration.py', reloading
+2025-08-31 02:41:11,827 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 02:41:51,541 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 02:41:51,544 - werkzeug - INFO -  * Debugger PIN: 131-551-071
+2025-08-31 02:41:54,477 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\dashboard.py', reloading
+2025-08-31 02:41:54,477 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\dashboard.py', reloading
+2025-08-31 02:41:54,478 - werkzeug - INFO -  * Detected change in 'C:\\Users\\MadScie254\\Documents\\GitHub\\eva_nice\\sentiment_analysis\\dashboard.py', reloading
+2025-08-31 02:41:56,652 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
