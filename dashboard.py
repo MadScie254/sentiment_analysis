@@ -7,6 +7,8 @@ import os
 import sys
 import json
 import math
+import hashlib
+import random
 import tempfile
 import logging
 from datetime import datetime, timedelta
@@ -31,27 +33,48 @@ import requests
 import feedparser
 from urllib.parse import urljoin, urlparse
 
-# Real components
+# Enhanced components - Production ready
 try:
-    from real_nlp_engine import nlp_engine, RealNLPEngine
-    from real_database import real_db_manager, db
-    from real_news_scraper import news_scraper, get_sample_news_data
-    from real_video_extractor import real_video_extractor
-    from real_news_aggregator import comprehensive_news_aggregator
-    from real_sentiment_analyzer import real_sentiment_analyzer
+    from enhanced_sentiment_analyzer import EnhancedSentimentAnalyzer, SentimentResult
+    from news_ingest import KenyanNewsIngestor
+    from config_manager import get_production_settings
+    from enhanced_database import real_db_manager, db
+    
+    # Initialize enhanced components
+    enhanced_sentiment_analyzer = EnhancedSentimentAnalyzer()
+    kenyan_news_ingestor = KenyanNewsIngestor()
+    production_settings = get_production_settings()
+    
     REAL_COMPONENTS_AVAILABLE = True
-    logger.info("✅ All real components loaded successfully")
+    logger.info("✅ Enhanced production components loaded successfully")
+    
+    # Legacy compatibility - alias the enhanced analyzer
+    real_sentiment_analyzer = enhanced_sentiment_analyzer
+    nlp_engine = enhanced_sentiment_analyzer  # NLP engine compatibility
+    
 except ImportError as e:
-    print(f"Warning: Could not import real components: {e}")
+    print(f"Warning: Could not import enhanced components: {e}")
     try:
-        # Fallback to individual API integration
+        # Fallback to original components
+        from real_nlp_engine import nlp_engine, RealNLPEngine
+        from real_database import real_db_manager, db
+        from real_news_scraper import news_scraper, get_sample_news_data
+        from real_video_extractor import real_video_extractor
         from real_news_aggregator import comprehensive_news_aggregator
         from real_sentiment_analyzer import real_sentiment_analyzer
         REAL_COMPONENTS_AVAILABLE = True
-        logger.info("✅ Real news and sentiment analysis components loaded")
+        logger.info("✅ All real components loaded successfully")
     except ImportError as e2:
-        print(f"Warning: Could not import any real components: {e2}")
-        REAL_COMPONENTS_AVAILABLE = False
+        print(f"Warning: Could not import real components: {e2}")
+        try:
+            # Fallback to individual API integration
+            from real_news_aggregator import comprehensive_news_aggregator
+            from real_sentiment_analyzer import real_sentiment_analyzer
+            REAL_COMPONENTS_AVAILABLE = True
+            logger.info("✅ Real news and sentiment analysis components loaded")
+        except ImportError as e3:
+            print(f"Warning: Could not import any real components: {e3}")
+            REAL_COMPONENTS_AVAILABLE = False
 
 # Simple fallback database class
 class SimpleDB:
@@ -138,12 +161,13 @@ if not REAL_COMPONENTS_AVAILABLE:
     
     # Try to import real components anyway
     try:
-        from real_api_integration import real_news_aggregator, real_sentiment_analyzer
+        from real_news_aggregator import comprehensive_news_aggregator as real_news_aggregator
+        from real_sentiment_analyzer import real_sentiment_analyzer
         logger.info("✅ Real API components imported for fallback")
     except ImportError:
         # Create basic fallback components
         class BasicNewsAggregator:
-            def get_trending_news(self, limit=20, page=1):
+            def get_comprehensive_news(self, limit=20, category=None):
                 return get_sample_news_data(limit)
         
         class BasicSentimentAnalyzer:
@@ -153,19 +177,21 @@ if not REAL_COMPONENTS_AVAILABLE:
         real_news_aggregator = BasicNewsAggregator()
         real_sentiment_analyzer = BasicSentimentAnalyzer()
         logger.info("Using basic fallback components")
-    
-    def get_sample_news_data(limit=20):
-        return [
-            {
-                'title': 'Mock News Article',
-                'url': 'https://example.com/news',
-                'description': 'This is a mock news article for testing',
-                'published': datetime.now(),
-                'source': 'MockNews',
-                'sentiment': 'positive',
-                'confidence': 0.8
-            }
-        ]
+
+# Global fallback function for news data
+def get_sample_news_data(limit=20):
+    """Get sample news data for fallback"""
+    return [
+        {
+            'title': 'Mock News Article',
+            'url': 'https://example.com/news',
+            'description': 'This is a mock news article for testing',
+            'published': datetime.now(),
+            'source': 'MockNews',
+            'sentiment': 'positive',
+            'confidence': 0.8
+        }
+    ]
 
 # Real News API Integration Class
 class RealNewsAPI:
@@ -393,9 +419,19 @@ class TwitterAPI:
         
         # Analyze sentiment for each tweet
         for tweet in mock_tweets:
-            sentiment_result = nlp_engine.analyze_sentiment(tweet['text'], model_preference='fast')
-            tweet['sentiment'] = sentiment_result.sentiment
-            tweet['confidence'] = sentiment_result.confidence
+            try:
+                if REAL_COMPONENTS_AVAILABLE and hasattr(enhanced_sentiment_analyzer, 'analyze_sentiment'):
+                    sentiment_result = enhanced_sentiment_analyzer.analyze_sentiment(tweet['text'])
+                    tweet['sentiment'] = sentiment_result.sentiment
+                    tweet['confidence'] = sentiment_result.confidence
+                else:
+                    sentiment_result = nlp_engine.analyze_sentiment(tweet['text'])
+                    tweet['sentiment'] = sentiment_result.sentiment
+                    tweet['confidence'] = sentiment_result.confidence
+            except Exception as e:
+                logger.error(f"Sentiment analysis failed for tweet: {e}")
+                tweet['sentiment'] = 'neutral'
+                tweet['confidence'] = 0.5
         
         return mock_tweets[:limit]
 
@@ -2466,35 +2502,68 @@ def dashboard():
 
 @app.route('/api/news')
 def get_news():
-    """Get paginated news with sentiment analysis from real APIs"""
+    """Get paginated news with sentiment analysis from enhanced Kenyan sources"""
     try:
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
         
-        # Use real comprehensive news aggregator
+        # Use enhanced Kenyan news ingestor first
+        articles = []
         try:
-            articles = comprehensive_news_aggregator.get_trending_news(limit)
-            logger.info(f"Fetched {len(articles)} articles from comprehensive aggregator")
+            if REAL_COMPONENTS_AVAILABLE and 'kenyan_news_ingestor' in globals():
+                # Get articles from Kenyan sources
+                kenyan_articles = kenyan_news_ingestor.ingest_all_sources()
+                # Convert to expected format and limit
+                articles.extend([{
+                    'title': item.title,
+                    'summary': item.summary,
+                    'url': item.url,
+                    'source': item.source,
+                    'published': item.published_date,
+                    'content': item.content
+                } for item in kenyan_articles[:limit]])
+                logger.info(f"Fetched {len(kenyan_articles)} articles from Kenyan sources")
+            
+            # If we need more articles, try comprehensive aggregator
+            if len(articles) < limit:
+                try:
+                    additional_articles = comprehensive_news_aggregator.get_comprehensive_news(limit - len(articles))
+                    articles.extend(additional_articles)
+                    logger.info(f"Added {len(additional_articles)} additional articles from comprehensive aggregator")
+                except Exception as e:
+                    logger.warning(f"Comprehensive aggregator failed: {e}")
+            
+            # Final fallback to sample data
+            if len(articles) == 0:
+                articles = get_sample_news_data()[:limit]
+                logger.info(f"Using fallback news data: {len(articles)} articles")
+                
         except Exception as e:
-            logger.warning(f"Comprehensive aggregator failed: {e}")
-            # Fallback to basic news data
+            logger.error(f"News ingestion error: {e}")
             articles = get_sample_news_data()[:limit]
-            logger.info(f"Using fallback news data: {len(articles)} articles")
         
-        # Analyze sentiment for each article using real analyzer
+        # Analyze sentiment for each article using enhanced analyzer
         for article in articles:
             if article.get('title') and article.get('summary'):
                 # Combine title and summary for sentiment analysis
                 text_to_analyze = f"{article['title']} {article['summary']}"
                 
                 try:
-                    # Use real sentiment analyzer
-                    sentiment_result = real_sentiment_analyzer.analyze_sentiment(text_to_analyze, 'roberta')
-                    
-                    # Update article with sentiment data
-                    article['sentiment'] = sentiment_result.sentiment
-                    article['confidence'] = round(sentiment_result.confidence, 3)
-                    article['sentiment_scores'] = sentiment_result.scores
+                    if REAL_COMPONENTS_AVAILABLE and hasattr(enhanced_sentiment_analyzer, 'analyze_sentiment'):
+                        # Use enhanced sentiment analyzer
+                        sentiment_result = enhanced_sentiment_analyzer.analyze_sentiment(text_to_analyze)
+                        
+                        # Update article with sentiment data
+                        article['sentiment'] = sentiment_result.sentiment
+                        article['confidence'] = round(sentiment_result.confidence, 3)
+                        article['sentiment_scores'] = sentiment_result.scores
+                        article['analysis_method'] = sentiment_result.method
+                    else:
+                        # Fallback to original analyzer
+                        sentiment_result = real_sentiment_analyzer.analyze_sentiment(text_to_analyze, 'roberta')
+                        article['sentiment'] = sentiment_result.sentiment
+                        article['confidence'] = round(sentiment_result.confidence, 3)
+                        article['sentiment_scores'] = sentiment_result.scores
                     
                 except Exception as e:
                     logger.error(f"Sentiment analysis error for article: {e}")
@@ -2502,9 +2571,10 @@ def get_news():
                     article['sentiment'] = 'neutral'
                     article['confidence'] = 0.5
                     article['sentiment_scores'] = {'positive': 0.3, 'negative': 0.3, 'neutral': 0.4}
+                    article['analysis_method'] = 'fallback'
         
         # Calculate pagination info
-        total_items = len(articles) * 3  # Estimate for pagination
+        total_items = len(articles) * 2  # More realistic estimate
         total_pages = max(1, (total_items // limit))
         
         # Get unique sources
@@ -2518,7 +2588,11 @@ def get_news():
             'total_items': total_items,
             'total_pages': total_pages,
             'sources_used': sources_used,
-            'api_sources': ['NewsAPI', 'GNews', 'Currents', 'Reuters RSS', 'BBC RSS', 'CNN RSS', 'NPR RSS', 'Washington Post RSS', 'Fox News RSS', 'ABC RSS', 'NBC RSS', 'Sky News RSS', 'Time RSS', 'Hacker News API', 'MediaStack'],
+            'api_sources': ['Kenyan News Sources', 'The Standard', 'Capital FM', 'Business Daily', 
+                          'AllAfrica Kenya', 'KBC', 'Citizen Digital', 'NTV Kenya', 'PesaCheck',
+                          'NewsAPI', 'GNews', 'Currents'],
+            'enhanced_sources': True,
+            'kenyan_focus': True,
             'real_apis_used': True,
             'timestamp': datetime.now().isoformat()
         })
@@ -2664,7 +2738,7 @@ def extract_metadata_from_file():
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_text_route():
-    """Analyze text sentiment with real Hugging Face models"""
+    """Analyze text sentiment with enhanced multi-model analyzer"""
     try:
         data = request.get_json()
         text = data.get('text', '')
@@ -2675,42 +2749,90 @@ def analyze_text_route():
         if len(text) > 5000:
             return jsonify({'error': 'Text too long (max 5000 characters)'}), 400
         
-        # Use real sentiment analyzer first
+        # Use enhanced sentiment analyzer with real API integration
         try:
-            result = real_sentiment_analyzer.analyze_sentiment(text, 'roberta')
-            logger.info(f"Used real Hugging Face API for sentiment analysis")
+            if REAL_COMPONENTS_AVAILABLE and hasattr(enhanced_sentiment_analyzer, 'analyze_sentiment'):
+                result = enhanced_sentiment_analyzer.analyze_sentiment(text)
+                logger.info(f"Used enhanced sentiment analyzer with method: {result.method}")
+                
+                # Convert enhanced result to response format
+                response_data = {
+                    'success': True,
+                    'text': result.text,
+                    'sentiment': result.sentiment,
+                    'confidence': round(result.confidence, 3),
+                    'scores': {
+                        'positive': round(result.scores.get('positive', 0.0), 3),
+                        'negative': round(result.scores.get('negative', 0.0), 3),
+                        'neutral': round(result.scores.get('neutral', 0.0), 3)
+                    },
+                    'model_used': result.model_used,
+                    'processing_time': round(result.processing_time, 3),
+                    'emotion_scores': getattr(result, 'emotion_scores', {}),
+                    'toxicity_score': round(getattr(result, 'toxicity_score', 0.0), 3),
+                    'timestamp': datetime.now().isoformat(),
+                    'text_length': len(text),
+                    'word_count': len(text.split()),
+                    'api_used': result.method,
+                    'real_ai_analysis': 'huggingface' in result.method.lower()
+                }
+            else:
+                # Fallback to original analyzer
+                result = real_sentiment_analyzer.analyze_sentiment(text, 'roberta')
+                logger.info(f"Used fallback real analyzer")
+                
+                response_data = {
+                    'success': True,
+                    'text': result.text,
+                    'sentiment': result.sentiment,
+                    'confidence': round(result.confidence, 3),
+                    'scores': {
+                        'positive': round(result.scores.get('positive', 0.0), 3),
+                        'negative': round(result.scores.get('negative', 0.0), 3),
+                        'neutral': round(result.scores.get('neutral', 0.0), 3)
+                    },
+                    'model_used': result.model_used,
+                    'processing_time': round(result.processing_time, 3),
+                    'emotion_scores': getattr(result, 'emotion_scores', {}),
+                    'toxicity_score': round(getattr(result, 'toxicity_score', 0.0), 3),
+                    'timestamp': datetime.now().isoformat(),
+                    'text_length': len(text),
+                    'word_count': len(text.split()),
+                    'api_used': 'huggingface' if 'huggingface' in result.model_used else 'fallback',
+                    'real_ai_analysis': 'huggingface' in result.model_used
+                }
+                
         except Exception as e:
-            logger.warning(f"Real analyzer failed, using fallback: {e}")
-            # Fallback to NLP engine
-            result = nlp_engine.analyze_sentiment(text)
-        
-        # Convert result object to dictionary
-        response_data = {
-            'success': True,
-            'text': result.text,
-            'sentiment': result.sentiment,
-            'confidence': round(result.confidence, 3),
-            'scores': {
-                'positive': round(result.scores.get('positive', 0.0), 3),
-                'negative': round(result.scores.get('negative', 0.0), 3),
-                'neutral': round(result.scores.get('neutral', 0.0), 3)
-            },
-            'model_used': result.model_used,
-            'processing_time': round(result.processing_time, 3),
-            'emotion_scores': getattr(result, 'emotion_scores', {}),
-            'toxicity_score': round(getattr(result, 'toxicity_score', 0.0), 3),
-            'timestamp': datetime.now().isoformat(),
-            'text_length': len(text),
-            'word_count': len(text.split()),
-            'api_used': 'huggingface' if 'huggingface' in result.model_used else 'fallback',
-            'real_ai_analysis': 'huggingface' in result.model_used
-        }
+            logger.warning(f"Enhanced analyzer failed, using NLP engine fallback: {e}")
+            # Fallback to NLP engine if available
+            if 'nlp_engine' in globals():
+                result = nlp_engine.analyze_sentiment(text)
+            else:
+                # Final fallback with mock analysis
+                result = analyze_sentiment_mock(text)
+            
+            response_data = {
+                'success': True,
+                'text': text,
+                'sentiment': result.get('sentiment', 'neutral'),
+                'confidence': result.get('confidence', 0.5),
+                'scores': result.get('scores', {'positive': 0.33, 'negative': 0.33, 'neutral': 0.34}),
+                'model_used': 'fallback',
+                'processing_time': 0.1,
+                'emotion_scores': {},
+                'toxicity_score': 0.0,
+                'timestamp': datetime.now().isoformat(),
+                'text_length': len(text),
+                'word_count': len(text.split()),
+                'api_used': 'fallback',
+                'real_ai_analysis': False
+            }
         
         # Save to database
         try:
             real_db_manager.save_sentiment_analysis(result)
-        except:
-            logger.warning("Could not save to database")
+        except Exception as e:
+            logger.warning(f"Could not save to database: {e}")
         
         return jsonify(response_data)
         

@@ -1,14 +1,17 @@
 """
-Advanced configuration and environment management
-Handles different deployment environments and configuration options
+Advanced configuration and environment management using Pydantic
+Handles different deployment environments and configuration options with validation
 """
 
 import os
 import json
 import configparser
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from pathlib import Path
+from pydantic import BaseModel, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
 
 @dataclass
 class DatabaseConfig:
@@ -479,6 +482,70 @@ def load_config(config_file: str = 'config.ini', env: str = 'development') -> Co
     global config_manager
     config_manager = ConfigurationManager(config_file, env)
     return config_manager
+
+
+# === PYDANTIC SETTINGS FOR PRODUCTION ===
+
+class ProductionSettings(BaseSettings):
+    """Production-ready settings with validation"""
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra='ignore'
+    )
+    
+    # Flask Configuration
+    SECRET_KEY: str = "change-this-in-production"
+    DEBUG: bool = False
+    HOST: str = "0.0.0.0"
+    PORT: int = 5000
+    
+    # Database
+    DATABASE_URL: str = "sqlite:///sentiment_analysis.db"
+    
+    # News APIs
+    NEWSAPI_KEY: Optional[str] = None
+    GNEWS_API_KEY: Optional[str] = None
+    CURRENTS_API_KEY: Optional[str] = None
+    DEFAULT_NEWS_COUNTRY: str = "ke"  # Kenya by default
+    
+    # ML APIs
+    HUGGINGFACE_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None  # Future integration
+    
+    # Security
+    ALLOWED_ORIGINS: str = "*"  # Comma-separated list or "*"
+    RATE_LIMIT_PER_MINUTE: int = 60
+    
+    # Cache
+    REDIS_URL: Optional[str] = None
+    CACHE_TTL: int = 300  # 5 minutes
+    
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"  # json or text
+    
+    @field_validator('ALLOWED_ORIGINS')
+    @classmethod
+    def validate_origins(cls, v):
+        if v == "*":
+            return ["*"]
+        return [origin.strip() for origin in v.split(",")]
+    
+    @field_validator('LOG_LEVEL')
+    @classmethod
+    def validate_log_level(cls, v):
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if v.upper() not in valid_levels:
+            raise ValueError(f"LOG_LEVEL must be one of {valid_levels}")
+        return v.upper()
+
+
+@lru_cache()
+def get_production_settings() -> ProductionSettings:
+    """Get cached production settings instance"""
+    return ProductionSettings()
+
 
 if __name__ == '__main__':
     # Demo configuration management
