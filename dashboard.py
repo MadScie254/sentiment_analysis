@@ -209,62 +209,109 @@ def get_sample_news_data(limit=20):
     ]
 
 # Real News API Integration Class
-class RealNewsAPI:
-    """Real News API integration using multiple news sources"""
+class KenyanNewsAPI:
+    """Kenyan News API integration using free sources"""
     
     def __init__(self):
-        self.newsapi_key = os.getenv('NEWSAPI_KEY')
-        self.gnews_key = os.getenv('GNEWS_API_KEY')
-        self.currents_key = os.getenv('CURRENTS_API_KEY')
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'SentimentAnalysisDashboard/1.0'})
+        self.timeout = 5  # Reduced timeout to prevent hanging
     
-    def get_trending_news(self, limit=20, page=1):
-        """Get trending news from multiple sources"""
+    def get_kenyan_news(self, limit=20):
+        """Get Kenyan news from free RSS feeds and APIs"""
         all_articles = []
         
-        # Try NewsAPI first
-        if self.newsapi_key:
-            articles = self._fetch_from_newsapi(limit//3, page)
-            all_articles.extend(articles)
+        # Kenyan RSS feeds (completely free)
+        kenyan_feeds = [
+            'https://www.nation.co.ke/kenya/news/rss',
+            'https://www.standardmedia.co.ke/rss/headlines.php',
+            'https://www.the-star.co.ke/news/rss',
+            'https://www.kbc.co.ke/feed/',
+            'https://www.capitalfm.co.ke/news/feed/'
+        ]
         
-        # Try GNews
-        if self.gnews_key and len(all_articles) < limit:
-            remaining = limit - len(all_articles)
-            articles = self._fetch_from_gnews(remaining, page)
-            all_articles.extend(articles)
+        for feed_url in kenyan_feeds:
+            try:
+                articles = self._fetch_from_rss(feed_url, limit//len(kenyan_feeds))
+                all_articles.extend(articles)
+                if len(all_articles) >= limit:
+                    break
+            except Exception as e:
+                logger.warning(f"Failed to fetch from {feed_url}: {e}")
+                continue
         
-        # Try Currents API
-        if self.currents_key and len(all_articles) < limit:
-            remaining = limit - len(all_articles)
-            articles = self._fetch_from_currents(remaining, page)
-            all_articles.extend(articles)
-        
-        # Add RSS feeds as fallback
-        if len(all_articles) < limit:
-            remaining = limit - len(all_articles)
-            articles = self._fetch_from_rss(remaining)
-            all_articles.extend(articles)
+        # Add sentiment analysis to articles
+        for article in all_articles[:limit]:
+            try:
+                # Analyze sentiment of title + description
+                text_to_analyze = f"{article.get('title', '')} {article.get('summary', '')}"
+                if text_to_analyze.strip():
+                    result = nlp_engine.analyze_sentiment(text_to_analyze)
+                    article['sentiment'] = result.sentiment
+                    article['confidence'] = result.confidence
+                else:
+                    article['sentiment'] = 'neutral'
+                    article['confidence'] = 0.5
+            except Exception as e:
+                logger.warning(f"Sentiment analysis failed for article: {e}")
+                article['sentiment'] = 'neutral'
+                article['confidence'] = 0.5
         
         return all_articles[:limit]
     
-    def _fetch_from_newsapi(self, limit, page):
-        """Fetch news from NewsAPI"""
+    def _fetch_from_rss(self, feed_url, limit=10):
+        """Fetch news from RSS feeds"""
         try:
-            url = "https://newsapi.org/v2/top-headlines"
-            params = {
-                'apiKey': self.newsapi_key,
-                'country': 'us',
-                'pageSize': min(limit, 100),
-                'page': page
-            }
-            
-            response = self.session.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
+            feed = feedparser.parse(feed_url)
             articles = []
-            for article in data.get('articles', []):
+            
+            for entry in feed.entries[:limit]:
+                # Extract publication date
+                pub_date = datetime.now()
+                if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                    try:
+                        pub_date = datetime(*entry.published_parsed[:6])
+                    except:
+                        pass
+                
+                # Clean up description
+                description = getattr(entry, 'description', '') or getattr(entry, 'summary', '')
+                if description:
+                    # Remove HTML tags
+                    import re
+                    description = re.sub('<[^<]+?>', '', description)
+                    description = description.strip()[:300]
+                
+                article = {
+                    'title': getattr(entry, 'title', 'No Title'),
+                    'summary': description,
+                    'url': getattr(entry, 'link', ''),
+                    'source': feed.feed.get('title', 'RSS Feed'),
+                    'timestamp': pub_date.isoformat(),
+                    'image_url': '',
+                    'sentiment': 'neutral',
+                    'confidence': 0.0
+                }
+                
+                # Try to get image
+                if hasattr(entry, 'media_content') and entry.media_content:
+                    article['image_url'] = entry.media_content[0].get('url', '')
+                elif hasattr(entry, 'enclosures') and entry.enclosures:
+                    for enclosure in entry.enclosures:
+                        if enclosure.type.startswith('image/'):
+                            article['image_url'] = enclosure.href
+                            break
+                
+                articles.append(article)
+            
+            return articles
+            
+        except Exception as e:
+            logger.error(f"RSS feed error for {feed_url}: {e}")
+            return []
+
+# Initialize Kenyan News API
+kenyan_news_api = KenyanNewsAPI()
                 if article.get('title') and article.get('description'):
                     articles.append({
                         'title': article['title'],
@@ -1746,12 +1793,12 @@ def dashboard():
                 </div>
                 <nav>
                     <ul class="nav-links">
-                        <li><a href="#overview">Overview</a></li>
-                        <li><a href="#trends">Trends</a></li>
-                        <li><a href="#segments">Segments</a></li>
-                        <li><a href="#news">News</a></li>
-                        <li><a href="#media">Media</a></li>
-                        <li><a href="#admin">Admin</a></li>
+                        <li><a href="#" onclick="showTab('overview')" class="nav-link active">Overview</a></li>
+                        <li><a href="#" onclick="showTab('sentiment')" class="nav-link">Sentiment</a></li>
+                        <li><a href="#" onclick="showTab('news')" class="nav-link">Kenya News</a></li>
+                        <li><a href="#" onclick="showTab('widgets')" class="nav-link">Widgets</a></li>
+                        <li><a href="#" onclick="showTab('analytics')" class="nav-link">Analytics</a></li>
+                        <li><a href="#" onclick="showTab('media')" class="nav-link">Media</a></li>
                     </ul>
                 </nav>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
@@ -3189,21 +3236,142 @@ def dashboard():
             }
         }
         
+        // Navigation Functions
+        function showTab(tabName) {
+            // Hide all tab panes
+            const allPanes = document.querySelectorAll('.tab-pane');
+            allPanes.forEach(pane => {
+                pane.classList.remove('active');
+                pane.style.display = 'none';
+            });
+            
+            // Remove active class from all nav links
+            const allNavLinks = document.querySelectorAll('.nav-link');
+            allNavLinks.forEach(link => link.classList.remove('active'));
+            
+            // Show selected tab
+            const selectedPane = document.getElementById(tabName);
+            if (selectedPane) {
+                selectedPane.classList.add('active');
+                selectedPane.style.display = 'block';
+            }
+            
+            // Add active class to clicked nav link
+            const activeLink = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+            
+            // Load tab-specific content
+            switch(tabName) {
+                case 'sentiment':
+                    // Focus on sentiment input
+                    const sentimentInput = document.getElementById('sentiment-input');
+                    if (sentimentInput) sentimentInput.focus();
+                    break;
+                case 'news':
+                    loadNews(1);
+                    break;
+                case 'widgets':
+                    loadWeather();
+                    loadCrypto();
+                    loadStocks();
+                    loadQuote();
+                    loadJoke();
+                    loadFact();
+                    break;
+                case 'analytics':
+                    updateLiveData();
+                    break;
+                case 'overview':
+                    initializeOverviewCharts();
+                    break;
+            }
+        }
+        
+        // Enhanced sentiment analysis function
+        async function analyzeSentiment() {
+            const input = document.getElementById('sentiment-input');
+            const result = document.getElementById('sentiment-result');
+            const text = input.value.trim();
+            
+            if (!text) {
+                result.innerHTML = '<div class="text-error">Please enter some text to analyze</div>';
+                return;
+            }
+            
+            result.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Analyzing...</div>';
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const sentimentColor = data.sentiment === 'positive' ? 'success' : 
+                                         data.sentiment === 'negative' ? 'error' : 'warning';
+                    
+                    result.innerHTML = `
+                        <div class="sentiment-result-card">
+                            <div class="sentiment-header">
+                                <span class="sentiment-label text-${sentimentColor}">
+                                    ${data.sentiment.toUpperCase()}
+                                </span>
+                                <span class="confidence-score">
+                                    ${(data.confidence * 100).toFixed(1)}%
+                                </span>
+                            </div>
+                            <div class="sentiment-scores">
+                                <div class="score-bar">
+                                    <span>Positive</span>
+                                    <div class="bar">
+                                        <div class="fill success" style="width: ${data.scores.positive * 100}%"></div>
+                                    </div>
+                                    <span>${(data.scores.positive * 100).toFixed(1)}%</span>
+                                </div>
+                                <div class="score-bar">
+                                    <span>Negative</span>
+                                    <div class="bar">
+                                        <div class="fill error" style="width: ${data.scores.negative * 100}%"></div>
+                                    </div>
+                                    <span>${(data.scores.negative * 100).toFixed(1)}%</span>
+                                </div>
+                                <div class="score-bar">
+                                    <span>Neutral</span>
+                                    <div class="bar">
+                                        <div class="fill warning" style="width: ${data.scores.neutral * 100}%"></div>
+                                    </div>
+                                    <span>${(data.scores.neutral * 100).toFixed(1)}%</span>
+                                </div>
+                            </div>
+                            <div class="analysis-meta">
+                                <small>Model: ${data.model_used} | Time: ${data.processing_time}s</small>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `<div class="text-error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="text-error">Analysis failed: ${error.message}</div>`;
+            }
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize theme first
             initializeTheme();
             
-            // Initialize overview charts by default
-            initializeOverviewCharts();
+            // Show overview tab by default
+            showTab('overview');
             
-            // Load news data for the news tab
-            loadNews(1);
-            
-            // Load social media data for the social tab
-            loadTweets();
-            
-            // Load initial widget data
+            // Load initial widget data with delay
             setTimeout(() => {
                 loadWeather();
                 loadCrypto();
@@ -3252,13 +3420,12 @@ def dashboard():
 
 @app.route('/api/news')
 def get_news():
-    """Get paginated news with sentiment analysis from enhanced Kenyan sources"""
+    """Get paginated Kenyan news with sentiment analysis"""
     try:
-        page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 10))
+        limit = int(request.args.get('limit', 20))
+        # Use our Kenyan news API
+        articles = kenyan_news_api.get_kenyan_news(limit)
         
-        # Use enhanced Kenyan news ingestor first
-        articles = []
         try:
             if REAL_COMPONENTS_AVAILABLE and 'kenyan_news_ingestor' in globals():
                 # Get articles from Kenyan sources
