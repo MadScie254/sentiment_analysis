@@ -380,6 +380,218 @@ class RealNewsAPI:
 # Initialize real news API
 real_news_api = RealNewsAPI()
 
+# Enhanced Free APIs Integration Classes
+class WeatherAPI:
+    """Free Weather API integration using OpenWeatherMap"""
+    
+    def __init__(self):
+        self.api_key = os.getenv('OPENWEATHER_API_KEY', 'demo_key')
+        self.base_url = "http://api.openweathermap.org/data/2.5"
+        self.session = requests.Session()
+    
+    def get_current_weather(self, city="London"):
+        """Get current weather data"""
+        try:
+            url = f"{self.base_url}/weather"
+            params = {
+                'q': city,
+                'appid': self.api_key,
+                'units': 'metric'
+            }
+            response = self.session.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                # Return mock data if API fails
+                return self._get_mock_weather(city)
+        except Exception as e:
+            logger.error(f"Weather API error: {e}")
+            return self._get_mock_weather(city)
+    
+    def _get_mock_weather(self, city):
+        """Mock weather data for fallback"""
+        return {
+            'name': city,
+            'main': {
+                'temp': 22.5,
+                'feels_like': 24.1,
+                'humidity': 65,
+                'pressure': 1013
+            },
+            'weather': [{
+                'main': 'Clear',
+                'description': 'clear sky',
+                'icon': '01d'
+            }],
+            'wind': {
+                'speed': 3.2,
+                'deg': 180
+            },
+            'visibility': 10000
+        }
+
+class CryptoAPI:
+    """Free Cryptocurrency API using CoinGecko"""
+    
+    def __init__(self):
+        self.base_url = "https://api.coingecko.com/api/v3"
+        self.session = requests.Session()
+    
+    def get_trending_crypto(self, limit=10):
+        """Get trending cryptocurrencies"""
+        try:
+            url = f"{self.base_url}/coins/markets"
+            params = {
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': limit,
+                'page': 1,
+                'sparkline': False
+            }
+            response = self.session.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return self._get_mock_crypto()
+        except Exception as e:
+            logger.error(f"Crypto API error: {e}")
+            return self._get_mock_crypto()
+    
+    def _get_mock_crypto(self):
+        """Mock crypto data for fallback"""
+        return [
+            {
+                'id': 'bitcoin',
+                'name': 'Bitcoin',
+                'symbol': 'BTC',
+                'current_price': 45000,
+                'price_change_percentage_24h': 2.5,
+                'market_cap': 850000000000,
+                'image': 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png'
+            },
+            {
+                'id': 'ethereum',
+                'name': 'Ethereum',
+                'symbol': 'ETH',
+                'current_price': 3200,
+                'price_change_percentage_24h': -1.2,
+                'market_cap': 380000000000,
+                'image': 'https://assets.coingecko.com/coins/images/279/large/ethereum.png'
+            }
+        ]
+
+class QuotesAPI:
+    """Free Inspirational Quotes API"""
+    
+    def __init__(self):
+        self.quotes_url = "https://api.quotable.io/random"
+        self.session = requests.Session()
+    
+    def get_random_quote(self):
+        """Get a random inspirational quote"""
+        try:
+            response = self.session.get(self.quotes_url, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return self._get_mock_quote()
+        except Exception as e:
+            logger.error(f"Quotes API error: {e}")
+            return self._get_mock_quote()
+    
+    def _get_mock_quote(self):
+        """Mock quote for fallback"""
+        quotes = [
+            {
+                'content': 'The only way to do great work is to love what you do.',
+                'author': 'Steve Jobs',
+                'tags': ['motivational', 'work']
+            },
+            {
+                'content': 'Innovation distinguishes between a leader and a follower.',
+                'author': 'Steve Jobs',
+                'tags': ['innovation', 'leadership']
+            },
+            {
+                'content': 'The future belongs to those who believe in the beauty of their dreams.',
+                'author': 'Eleanor Roosevelt',
+                'tags': ['dreams', 'future']
+            }
+        ]
+        return random.choice(quotes)
+
+class JokesAPI:
+    """Free Jokes API for mood enhancement"""
+    
+    def __init__(self):
+        self.jokes_url = "https://official-joke-api.appspot.com/random_joke"
+        self.session = requests.Session()
+    
+    def get_random_joke(self):
+        """Get a random clean joke"""
+        try:
+            response = self.session.get(self.jokes_url, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return self._get_mock_joke()
+        except Exception as e:
+            logger.error(f"Jokes API error: {e}")
+            return self._get_mock_joke()
+    
+    def _get_mock_joke(self):
+        """Mock joke for fallback"""
+        jokes = [
+            {
+                'setup': 'Why do programmers prefer dark mode?',
+                'punchline': 'Because light attracts bugs!',
+                'type': 'programming'
+            },
+            {
+                'setup': 'Why did the AI go to therapy?',
+                'punchline': 'It had too many deep learning issues!',
+                'type': 'technology'
+            }
+        ]
+        return random.choice(jokes)
+
+class FactsAPI:
+    """Free Random Facts API"""
+    
+    def __init__(self):
+        self.facts_url = "https://uselessfacts.jsph.pl/random.json?language=en"
+        self.session = requests.Session()
+    
+    def get_random_fact(self):
+        """Get a random interesting fact"""
+        try:
+            response = self.session.get(self.facts_url, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return self._get_mock_fact()
+        except Exception as e:
+            logger.error(f"Facts API error: {e}")
+            return self._get_mock_fact()
+    
+    def _get_mock_fact(self):
+        """Mock fact for fallback"""
+        facts = [
+            {
+                'text': 'Honey never spoils. Archaeologists have found pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible.',
+                'source': 'Science Facts'
+            },
+            {
+                'text': 'A group of flamingos is called a "flamboyance".',
+                'source': 'Animal Facts'
+            },
+            {
+                'text': 'The human brain contains approximately 86 billion neurons.',
+                'source': 'Human Body Facts'
+            }
+        ]
+        return random.choice(facts)
+
 # X/Twitter API Integration Class
 class TwitterAPI:
     """Basic Twitter API integration for sentiment analysis"""
@@ -435,7 +647,87 @@ class TwitterAPI:
         
         return mock_tweets[:limit]
 
-# Initialize Twitter API
+# Enhanced Stock Market API Class
+class StockAPI:
+    """Free Stock Market API using Alpha Vantage and Finnhub"""
+    
+    def __init__(self):
+        self.alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY', 'demo')
+        self.finnhub_key = os.getenv('FINNHUB_API_KEY', 'demo')
+        self.session = requests.Session()
+    
+    def get_market_overview(self):
+        """Get market overview with major indices"""
+        try:
+            # Try Alpha Vantage first
+            symbols = ['SPY', 'QQQ', 'DIA']  # S&P 500, NASDAQ, Dow Jones ETFs
+            market_data = []
+            
+            for symbol in symbols:
+                try:
+                    url = "https://www.alphavantage.co/query"
+                    params = {
+                        'function': 'GLOBAL_QUOTE',
+                        'symbol': symbol,
+                        'apikey': self.alpha_vantage_key
+                    }
+                    response = self.session.get(url, params=params, timeout=10)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if 'Global Quote' in data:
+                            quote = data['Global Quote']
+                            market_data.append({
+                                'symbol': symbol,
+                                'price': float(quote.get('05. price', 0)),
+                                'change': float(quote.get('09. change', 0)),
+                                'change_percent': quote.get('10. change percent', '0%')
+                            })
+                except Exception as e:
+                    logger.error(f"Error fetching {symbol}: {e}")
+                    continue
+            
+            if market_data:
+                return market_data
+            else:
+                return self._get_mock_stocks()
+                
+        except Exception as e:
+            logger.error(f"Stock API error: {e}")
+            return self._get_mock_stocks()
+    
+    def _get_mock_stocks(self):
+        """Mock stock data for fallback"""
+        return [
+            {
+                'symbol': 'SPY',
+                'name': 'S&P 500 ETF',
+                'price': 445.67,
+                'change': 2.34,
+                'change_percent': '+0.53%'
+            },
+            {
+                'symbol': 'QQQ',
+                'name': 'NASDAQ ETF',
+                'price': 378.92,
+                'change': -1.45,
+                'change_percent': '-0.38%'
+            },
+            {
+                'symbol': 'DIA',
+                'name': 'Dow Jones ETF',
+                'price': 356.78,
+                'change': 0.89,
+                'change_percent': '+0.25%'
+            }
+        ]
+
+# Initialize all API instances
+weather_api = WeatherAPI()
+crypto_api = CryptoAPI()
+quotes_api = QuotesAPI()
+jokes_api = JokesAPI()
+facts_api = FactsAPI()
+stock_api = StockAPI()
 twitter_api = TwitterAPI()
 
 # Configuration
@@ -461,6 +753,13 @@ class Config:
     # AI/ML API Keys
     HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    
+    # Weather API Key
+    OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
+    
+    # Stock API Keys (free alternatives)
+    ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
+    FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
 
 # Logging configuration - early setup
 logging.basicConfig(
@@ -1535,6 +1834,10 @@ def dashboard():
                         <i class="fas fa-video"></i>
                         Media
                     </button>
+                    <button class="tab-btn" onclick="switchTab('widgets', this)">
+                        <i class="fas fa-th-large"></i>
+                        Widgets
+                    </button>
                     <button class="tab-btn" onclick="switchTab('admin', this)">
                         <i class="fas fa-cog"></i>
                         Admin
@@ -1765,6 +2068,147 @@ def dashboard():
                         </div>
                     </div>
                     
+                    <!-- Enhanced Widgets Tab -->
+                    <div id="widgets" class="tab-pane">
+                        <div class="grid grid-cols-3 gap-6">
+                            <!-- Weather Widget -->
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-cloud-sun text-primary"></i>
+                                    Weather
+                                </h3>
+                                <div id="weather-widget">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <input type="text" id="weather-city" placeholder="Enter city" class="glass-btn" style="flex: 1;">
+                                        <button onclick="loadWeather()" class="glass-btn primary">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                    <div id="weather-display">
+                                        <!-- Weather data will load here -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Crypto Widget -->
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fab fa-bitcoin text-warning"></i>
+                                    Cryptocurrency
+                                </h3>
+                                <div id="crypto-widget">
+                                    <button onclick="loadCrypto()" class="glass-btn primary mb-3">
+                                        <i class="fas fa-sync-alt"></i> Refresh Prices
+                                    </button>
+                                    <div id="crypto-display">
+                                        <!-- Crypto data will load here -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Stocks Widget -->
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-chart-line text-success"></i>
+                                    Stock Market
+                                </h3>
+                                <div id="stocks-widget">
+                                    <button onclick="loadStocks()" class="glass-btn primary mb-3">
+                                        <i class="fas fa-sync-alt"></i> Refresh Markets
+                                    </button>
+                                    <div id="stocks-display">
+                                        <!-- Stock data will load here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-6 mt-6">
+                            <!-- Quote Widget -->
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-quote-left text-accent"></i>
+                                    Daily Inspiration
+                                </h3>
+                                <div id="quote-widget">
+                                    <button onclick="loadQuote()" class="glass-btn primary mb-3">
+                                        <i class="fas fa-lightbulb"></i> New Quote
+                                    </button>
+                                    <div id="quote-display">
+                                        <!-- Quote will load here -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Joke Widget -->
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-laugh text-warning"></i>
+                                    Daily Humor
+                                </h3>
+                                <div id="joke-widget">
+                                    <button onclick="loadJoke()" class="glass-btn primary mb-3">
+                                        <i class="fas fa-smile"></i> Tell Me a Joke
+                                    </button>
+                                    <div id="joke-display">
+                                        <!-- Joke will load here -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Fact Widget -->
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-brain text-primary"></i>
+                                    Random Facts
+                                </h3>
+                                <div id="fact-widget">
+                                    <button onclick="loadFact()" class="glass-btn primary mb-3">
+                                        <i class="fas fa-info-circle"></i> Learn Something
+                                    </button>
+                                    <div id="fact-display">
+                                        <!-- Fact will load here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Real-time Dashboard -->
+                        <div class="glass-card mt-6">
+                            <h3 class="mb-4">
+                                <i class="fas fa-tachometer-alt text-primary"></i>
+                                Real-time Dashboard
+                            </h3>
+                            <div class="grid grid-cols-4 gap-4">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="live-sentiment">0%</div>
+                                    <div class="stat-label">Live Sentiment</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="live-temp">--°C</div>
+                                    <div class="stat-label">Temperature</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="live-btc">$--</div>
+                                    <div class="stat-label">Bitcoin Price</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="live-market">--</div>
+                                    <div class="stat-label">Market Status</div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <button onclick="startRealTimeUpdates()" class="glass-btn primary">
+                                    <i class="fas fa-play"></i> Start Live Updates
+                                </button>
+                                <button onclick="stopRealTimeUpdates()" class="glass-btn">
+                                    <i class="fas fa-stop"></i> Stop Updates
+                                </button>
+                                <span class="text-sm text-secondary ml-4">Updates every 30 seconds</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Admin Tab -->
                     <div id="admin" class="tab-pane">
                         <div class="grid grid-cols-2 gap-6">
@@ -1973,6 +2417,9 @@ def dashboard():
                     break;
                 case 'segments':
                     initializeSegmentsCharts();
+                    break;
+                case 'widgets':
+                    initializeWidgets();
                     break;
             }
         }
@@ -2449,6 +2896,284 @@ def dashboard():
             }
         }
         
+        // Enhanced Widget Functions
+        function initializeWidgets() {
+            // Initialize all widgets when tab is opened
+            loadWeather();
+            loadCrypto();
+            loadStocks();
+            loadQuote();
+            loadJoke();
+            loadFact();
+        }
+        
+        // Weather Widget Functions
+        async function loadWeather() {
+            const city = document.getElementById('weather-city').value || 'London';
+            const display = document.getElementById('weather-display');
+            
+            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading weather...</div>';
+            
+            try {
+                const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const weather = data.data;
+                    display.innerHTML = `
+                        <div class="weather-info">
+                            <div class="text-center mb-3">
+                                <div class="text-3xl font-bold">${Math.round(weather.main.temp)}°C</div>
+                                <div class="text-secondary">${weather.name}</div>
+                                <div class="text-sm">${weather.weather[0].description}</div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div>Feels like: ${Math.round(weather.main.feels_like)}°C</div>
+                                <div>Humidity: ${weather.main.humidity}%</div>
+                                <div>Wind: ${weather.wind.speed} m/s</div>
+                                <div>Pressure: ${weather.main.pressure} hPa</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Update live dashboard
+                    document.getElementById('live-temp').textContent = `${Math.round(weather.main.temp)}°C`;
+                } else {
+                    display.innerHTML = '<div class="text-error">Failed to load weather data</div>';
+                }
+            } catch (error) {
+                display.innerHTML = '<div class="text-error">Weather service unavailable</div>';
+            }
+        }
+        
+        // Crypto Widget Functions
+        async function loadCrypto() {
+            const display = document.getElementById('crypto-display');
+            
+            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading crypto...</div>';
+            
+            try {
+                const response = await fetch('/api/crypto?limit=5');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cryptos = data.data;
+                    display.innerHTML = cryptos.map(crypto => `
+                        <div class="flex justify-between items-center py-2 border-b border-glass-border">
+                            <div>
+                                <div class="font-medium">${crypto.symbol.toUpperCase()}</div>
+                                <div class="text-sm text-secondary">${crypto.name}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-medium">$${crypto.current_price.toLocaleString()}</div>
+                                <div class="text-sm ${crypto.price_change_percentage_24h >= 0 ? 'text-success' : 'text-error'}">
+                                    ${crypto.price_change_percentage_24h >= 0 ? '+' : ''}${crypto.price_change_percentage_24h.toFixed(2)}%
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    // Update live dashboard with Bitcoin price
+                    const bitcoin = cryptos.find(c => c.id === 'bitcoin');
+                    if (bitcoin) {
+                        document.getElementById('live-btc').textContent = `$${bitcoin.current_price.toLocaleString()}`;
+                    }
+                } else {
+                    display.innerHTML = '<div class="text-error">Failed to load crypto data</div>';
+                }
+            } catch (error) {
+                display.innerHTML = '<div class="text-error">Crypto service unavailable</div>';
+            }
+        }
+        
+        // Stock Widget Functions
+        async function loadStocks() {
+            const display = document.getElementById('stocks-display');
+            
+            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading stocks...</div>';
+            
+            try {
+                const response = await fetch('/api/stocks');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stocks = data.data;
+                    display.innerHTML = stocks.map(stock => `
+                        <div class="flex justify-between items-center py-2 border-b border-glass-border">
+                            <div>
+                                <div class="font-medium">${stock.symbol}</div>
+                                <div class="text-sm text-secondary">${stock.name || 'Market Index'}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-medium">$${stock.price.toFixed(2)}</div>
+                                <div class="text-sm ${stock.change >= 0 ? 'text-success' : 'text-error'}">
+                                    ${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)} (${stock.change_percent})
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    // Update live dashboard
+                    const marketStatus = stocks.some(s => s.change > 0) ? 'UP' : 'DOWN';
+                    document.getElementById('live-market').textContent = marketStatus;
+                } else {
+                    display.innerHTML = '<div class="text-error">Failed to load stock data</div>';
+                }
+            } catch (error) {
+                display.innerHTML = '<div class="text-error">Stock service unavailable</div>';
+            }
+        }
+        
+        // Quote Widget Functions
+        async function loadQuote() {
+            const display = document.getElementById('quote-display');
+            
+            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading quote...</div>';
+            
+            try {
+                const response = await fetch('/api/quote');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const quote = data.data;
+                    display.innerHTML = `
+                        <div class="quote-content">
+                            <blockquote class="text-lg italic mb-3">
+                                "${quote.content}"
+                            </blockquote>
+                            <div class="text-right text-secondary">
+                                — ${quote.author}
+                            </div>
+                            ${quote.tags ? `
+                                <div class="mt-2">
+                                    ${quote.tags.map(tag => `<span class="inline-block bg-glass px-2 py-1 rounded text-xs mr-1">${tag}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    display.innerHTML = '<div class="text-error">Failed to load quote</div>';
+                }
+            } catch (error) {
+                display.innerHTML = '<div class="text-error">Quote service unavailable</div>';
+            }
+        }
+        
+        // Joke Widget Functions
+        async function loadJoke() {
+            const display = document.getElementById('joke-display');
+            
+            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading joke...</div>';
+            
+            try {
+                const response = await fetch('/api/joke');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const joke = data.data;
+                    display.innerHTML = `
+                        <div class="joke-content">
+                            <div class="mb-3">
+                                <strong>Q:</strong> ${joke.setup}
+                            </div>
+                            <div class="text-primary font-medium">
+                                <strong>A:</strong> ${joke.punchline}
+                            </div>
+                            ${joke.type ? `
+                                <div class="mt-2">
+                                    <span class="inline-block bg-glass px-2 py-1 rounded text-xs">${joke.type}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    display.innerHTML = '<div class="text-error">Failed to load joke</div>';
+                }
+            } catch (error) {
+                display.innerHTML = '<div class="text-error">Joke service unavailable</div>';
+            }
+        }
+        
+        // Fact Widget Functions
+        async function loadFact() {
+            const display = document.getElementById('fact-display');
+            
+            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading fact...</div>';
+            
+            try {
+                const response = await fetch('/api/fact');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const fact = data.data;
+                    display.innerHTML = `
+                        <div class="fact-content">
+                            <div class="mb-3">
+                                ${fact.text}
+                            </div>
+                            ${fact.source ? `
+                                <div class="text-right text-secondary text-sm">
+                                    Source: ${fact.source}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    display.innerHTML = '<div class="text-error">Failed to load fact</div>';
+                }
+            } catch (error) {
+                display.innerHTML = '<div class="text-error">Fact service unavailable</div>';
+            }
+        }
+        
+        // Real-time Updates
+        let realTimeInterval;
+        
+        function startRealTimeUpdates() {
+            if (realTimeInterval) {
+                clearInterval(realTimeInterval);
+            }
+            
+            // Update immediately
+            updateLiveData();
+            
+            // Then update every 30 seconds
+            realTimeInterval = setInterval(updateLiveData, 30000);
+            
+            // Update button states
+            document.querySelector('button[onclick="startRealTimeUpdates()"]').disabled = true;
+            document.querySelector('button[onclick="stopRealTimeUpdates()"]').disabled = false;
+        }
+        
+        function stopRealTimeUpdates() {
+            if (realTimeInterval) {
+                clearInterval(realTimeInterval);
+                realTimeInterval = null;
+            }
+            
+            // Update button states
+            document.querySelector('button[onclick="startRealTimeUpdates()"]').disabled = false;
+            document.querySelector('button[onclick="stopRealTimeUpdates()"]').disabled = true;
+        }
+        
+        async function updateLiveData() {
+            try {
+                // Update sentiment from recent analyses
+                const analyticsResponse = await fetch('/api/analytics/summary');
+                if (analyticsResponse.ok) {
+                    const analytics = await analyticsResponse.json();
+                    const positivePct = Math.round(analytics.sentiment_distribution.positive);
+                    document.getElementById('live-sentiment').textContent = `${positivePct}%`;
+                }
+                
+                // Update other live data (weather, crypto, stocks are updated by their respective functions)
+                // This could be enhanced to fetch only the specific data needed for live updates
+                
+            } catch (error) {
+                console.error('Live update error:', error);
+            }
+        }
+        
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize theme first
@@ -2462,6 +3187,16 @@ def dashboard():
             
             // Load social media data for the social tab
             loadTweets();
+            
+            // Load initial widget data
+            setTimeout(() => {
+                loadWeather();
+                loadCrypto();
+                loadStocks();
+                loadQuote();
+                loadJoke();
+                loadFact();
+            }, 1000); // Delay to prevent overwhelming APIs on page load
             
             // Add keyboard shortcuts
             document.addEventListener('keydown', function(e) {
@@ -3026,6 +3761,99 @@ def get_tweets():
     except Exception as e:
         logger.error(f"Twitter API error: {e}")
         return jsonify({'error': 'Failed to fetch tweets'}), 500
+
+# Enhanced API Routes for New Services
+@app.route('/api/weather')
+def get_weather():
+    """Get current weather data"""
+    try:
+        city = request.args.get('city', 'London')
+        weather_data = weather_api.get_current_weather(city)
+        
+        return jsonify({
+            'success': True,
+            'data': weather_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Weather API error: {e}")
+        return jsonify({'error': 'Failed to fetch weather data'}), 500
+
+@app.route('/api/crypto')
+def get_crypto():
+    """Get cryptocurrency data"""
+    try:
+        limit = int(request.args.get('limit', 10))
+        crypto_data = crypto_api.get_trending_crypto(limit)
+        
+        return jsonify({
+            'success': True,
+            'data': crypto_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Crypto API error: {e}")
+        return jsonify({'error': 'Failed to fetch crypto data'}), 500
+
+@app.route('/api/stocks')
+def get_stocks():
+    """Get stock market data"""
+    try:
+        stock_data = stock_api.get_market_overview()
+        
+        return jsonify({
+            'success': True,
+            'data': stock_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Stock API error: {e}")
+        return jsonify({'error': 'Failed to fetch stock data'}), 500
+
+@app.route('/api/quote')
+def get_quote():
+    """Get inspirational quote"""
+    try:
+        quote_data = quotes_api.get_random_quote()
+        
+        return jsonify({
+            'success': True,
+            'data': quote_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Quote API error: {e}")
+        return jsonify({'error': 'Failed to fetch quote'}), 500
+
+@app.route('/api/joke')
+def get_joke():
+    """Get random joke"""
+    try:
+        joke_data = jokes_api.get_random_joke()
+        
+        return jsonify({
+            'success': True,
+            'data': joke_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Joke API error: {e}")
+        return jsonify({'error': 'Failed to fetch joke'}), 500
+
+@app.route('/api/fact')
+def get_fact():
+    """Get random fact"""
+    try:
+        fact_data = facts_api.get_random_fact()
+        
+        return jsonify({
+            'success': True,
+            'data': fact_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Fact API error: {e}")
+        return jsonify({'error': 'Failed to fetch fact'}), 500
 
 @app.route('/api/analytics/summary')
 def get_analytics_summary():
