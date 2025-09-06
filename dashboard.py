@@ -33,12 +33,16 @@ import requests
 import feedparser
 from urllib.parse import urljoin, urlparse
 
-# Enhanced components - Production ready
+# Enhanced components - Production ready + Immersive APIs
 try:
     from enhanced_sentiment_analyzer import EnhancedSentimentAnalyzer, SentimentResult
     from news_ingest import KenyanNewsIngestor
     from config_manager import get_production_settings
     from enhanced_database import real_db_manager, db
+    
+    # NEW: Immersive API integrations - ALL FREE, NO SIGNUP!
+    from immersive_api_integrator import api_integrator, social_aggregator, finance_aggregator
+    from next_gen_news_aggregator import next_gen_news
     
     # Initialize enhanced components
     enhanced_sentiment_analyzer = EnhancedSentimentAnalyzer()
@@ -46,7 +50,8 @@ try:
     production_settings = get_production_settings()
     
     REAL_COMPONENTS_AVAILABLE = True
-    logger.info("✅ Enhanced production components loaded successfully")
+    IMMERSIVE_APIS_AVAILABLE = True
+    logger.info("✅ Enhanced production components + Immersive APIs loaded successfully")
     
     # Legacy compatibility - alias the enhanced analyzer
     real_sentiment_analyzer = enhanced_sentiment_analyzer
@@ -54,6 +59,7 @@ try:
     
 except ImportError as e:
     print(f"Warning: Could not import enhanced components: {e}")
+    IMMERSIVE_APIS_AVAILABLE = False
     try:
         # Fallback to original components
         from real_nlp_engine import nlp_engine, RealNLPEngine
@@ -75,6 +81,7 @@ except ImportError as e:
         except ImportError as e3:
             print(f"Warning: Could not import any real components: {e3}")
             REAL_COMPONENTS_AVAILABLE = False
+            IMMERSIVE_APIS_AVAILABLE = False
 
 # Simple fallback database class
 class SimpleDB:
@@ -521,9 +528,16 @@ def initialize_app():
         try:
             with app.app_context():
                 db.create_all()
-            model_info = nlp_engine.get_model_info()
-            logger.info(f"NLP Models available: {model_info['available_models']}")
-            logger.info(f"Processing device: {model_info['device']}")
+            # Check which analyzer is available and get model info
+            if 'enhanced_sentiment_analyzer' in globals():
+                model_info = enhanced_sentiment_analyzer.get_model_info()
+                logger.info(f"Enhanced analyzer available with models: {model_info.get('available_models', [])}")
+            elif 'nlp_engine' in globals():
+                model_info = nlp_engine.get_model_info()
+                logger.info(f"NLP Models available: {model_info['available_models']}")
+                logger.info(f"Processing device: {model_info['device']}")
+            else:
+                logger.info("No specific model info available")
         except Exception as e:
             logger.warning(f"Real components initialization failed: {e}")
     else:
@@ -1535,6 +1549,22 @@ def dashboard():
                         <i class="fas fa-video"></i>
                         Media
                     </button>
+                    <button class="tab-btn" onclick="switchTab('immersive', this)" style="background: linear-gradient(45deg, var(--primary), var(--accent)); color: white;">
+                        <i class="fas fa-rocket"></i>
+                        🚀 Immersive
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('crypto', this)">
+                        <i class="fab fa-bitcoin"></i>
+                        Crypto
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('entertainment', this)">
+                        <i class="fas fa-laugh"></i>
+                        Fun Zone
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('space', this)">
+                        <i class="fas fa-rocket"></i>
+                        Space
+                    </button>
                     <button class="tab-btn" onclick="switchTab('admin', this)">
                         <i class="fas fa-cog"></i>
                         Admin
@@ -1812,6 +1842,202 @@ def dashboard():
                                         <input type="number" min="1" max="60" value="5" class="glass-btn">
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Immersive Features Tab -->
+                    <div id="immersive" class="tab-pane">
+                        <div class="glass-card mb-6">
+                            <h3 class="mb-4">
+                                <i class="fas fa-rocket text-primary"></i>
+                                🚀 Immersive Dashboard - Real-time Data from 50+ Free APIs
+                            </h3>
+                            <div class="grid grid-cols-4 gap-4 mb-6">
+                                <div class="glass-card text-center">
+                                    <div id="weather-widget">
+                                        <i class="fas fa-cloud-sun text-primary text-3xl mb-2"></i>
+                                        <h4>Weather</h4>
+                                        <div id="current-weather" class="text-sm">Loading...</div>
+                                    </div>
+                                </div>
+                                <div class="glass-card text-center">
+                                    <div id="quote-widget">
+                                        <i class="fas fa-quote-left text-accent text-3xl mb-2"></i>
+                                        <h4>Daily Quote</h4>
+                                        <div id="daily-quote" class="text-sm">Loading...</div>
+                                    </div>
+                                </div>
+                                <div class="glass-card text-center">
+                                    <div id="github-widget">
+                                        <i class="fab fa-github text-success text-3xl mb-2"></i>
+                                        <h4>Trending</h4>
+                                        <div id="github-trending" class="text-sm">Loading...</div>
+                                    </div>
+                                </div>
+                                <div class="glass-card text-center">
+                                    <div id="space-widget">
+                                        <i class="fas fa-satellite text-warning text-3xl mb-2"></i>
+                                        <h4>Space</h4>
+                                        <div id="space-data" class="text-sm">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-6">
+                                <div class="glass-card">
+                                    <h4 class="mb-4">
+                                        <i class="fas fa-newspaper text-primary"></i>
+                                        Latest World News (RSS + APIs)
+                                    </h4>
+                                    <div id="immersive-news" class="space-y-3 max-h-96 overflow-y-auto">
+                                        <div class="text-center text-secondary">Loading comprehensive news...</div>
+                                    </div>
+                                </div>
+                                <div class="glass-card">
+                                    <h4 class="mb-4">
+                                        <i class="fab fa-reddit text-warning"></i>
+                                        Social Trends & Discussions
+                                    </h4>
+                                    <div id="social-trends" class="space-y-3 max-h-96 overflow-y-auto">
+                                        <div class="text-center text-secondary">Loading social data...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card">
+                            <h4 class="mb-4">
+                                <i class="fas fa-chart-line text-success"></i>
+                                Real-time Multi-source Sentiment Analysis
+                            </h4>
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <div class="glass-card text-center">
+                                    <div class="text-2xl font-bold text-success" id="immersive-positive">0%</div>
+                                    <div class="text-sm text-secondary">Positive Sentiment</div>
+                                </div>
+                                <div class="glass-card text-center">
+                                    <div class="text-2xl font-bold text-warning" id="immersive-neutral">0%</div>
+                                    <div class="text-sm text-secondary">Neutral Sentiment</div>
+                                </div>
+                                <div class="glass-card text-center">
+                                    <div class="text-2xl font-bold text-error" id="immersive-negative">0%</div>
+                                    <div class="text-sm text-secondary">Negative Sentiment</div>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="immersive-sentiment-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Crypto Tab -->
+                    <div id="crypto" class="tab-pane">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fab fa-bitcoin text-warning"></i>
+                                    Live Cryptocurrency Prices
+                                </h3>
+                                <div id="crypto-prices" class="space-y-3">
+                                    <div class="text-center text-secondary">Loading crypto data...</div>
+                                </div>
+                            </div>
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-newspaper text-primary"></i>
+                                    Crypto News & Sentiment
+                                </h3>
+                                <div id="crypto-news" class="space-y-3 max-h-96 overflow-y-auto">
+                                    <div class="text-center text-secondary">Loading crypto news...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card mt-6">
+                            <h3 class="mb-4">
+                                <i class="fas fa-chart-area text-accent"></i>
+                                Crypto Sentiment Trends
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="crypto-sentiment-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Entertainment/Fun Zone Tab -->
+                    <div id="entertainment" class="tab-pane">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-laugh text-warning"></i>
+                                    Jokes & Entertainment
+                                </h3>
+                                <div id="jokes-content" class="space-y-4">
+                                    <div class="text-center text-secondary">Loading jokes...</div>
+                                </div>
+                                <button onclick="loadNewJoke()" class="glass-btn mt-4">
+                                    <i class="fas fa-refresh"></i> New Joke
+                                </button>
+                            </div>
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-lightbulb text-accent"></i>
+                                    Random Facts & Inspiration
+                                </h3>
+                                <div id="facts-content" class="space-y-4">
+                                    <div class="text-center text-secondary">Loading facts...</div>
+                                </div>
+                                <button onclick="loadNewFact()" class="glass-btn mt-4">
+                                    <i class="fas fa-refresh"></i> New Fact
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card mt-6">
+                            <h3 class="mb-4">
+                                <i class="fas fa-palette text-primary"></i>
+                                Dynamic UI Themes
+                            </h3>
+                            <div id="theme-showcase" class="grid grid-cols-5 gap-3">
+                                <!-- Dynamic color themes will be loaded here -->
+                            </div>
+                            <button onclick="generateNewTheme()" class="glass-btn mt-4">
+                                <i class="fas fa-magic"></i> Generate New Theme
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Space Tab -->
+                    <div id="space" class="tab-pane">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-satellite text-primary"></i>
+                                    International Space Station
+                                </h3>
+                                <div id="iss-data" class="space-y-4">
+                                    <div class="text-center text-secondary">Loading ISS data...</div>
+                                </div>
+                            </div>
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-user-astronaut text-accent"></i>
+                                    People in Space
+                                </h3>
+                                <div id="astronauts-data" class="space-y-3">
+                                    <div class="text-center text-secondary">Loading astronaut data...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card mt-6">
+                            <h3 class="mb-4">
+                                <i class="fas fa-rocket text-warning"></i>
+                                Space News & Updates
+                            </h3>
+                            <div id="space-news" class="space-y-3 max-h-96 overflow-y-auto">
+                                <div class="text-center text-secondary">Loading space news...</div>
                             </div>
                         </div>
                     </div>
@@ -2492,13 +2718,471 @@ def dashboard():
                     });
                 }, 250);
             });
+            
+            // Initialize immersive features
+            initializeImmersiveFeatures();
         });
-        </script>
-    </body>
-    </html>
+        
+        // ===== NEW IMMERSIVE FEATURES JAVASCRIPT =====
+        
+        // Global variables for immersive features
+        let immersiveDataCache = {};
+        let immersiveUpdateInterval;
+        
+        function initializeImmersiveFeatures() {
+            // Load immersive data when immersive tab is activated
+            const immersiveTab = document.querySelector('[onclick*="immersive"]');
+            if (immersiveTab) {
+                immersiveTab.addEventListener('click', function() {
+                    loadImmersiveData();
+                    startImmersiveUpdates();
+                });
+            }
+            
+            // Initialize other immersive tabs
+            const cryptoTab = document.querySelector('[onclick*="crypto"]');
+            if (cryptoTab) {
+                cryptoTab.addEventListener('click', loadCryptoData);
+            }
+            
+            const entertainmentTab = document.querySelector('[onclick*="entertainment"]');
+            if (entertainmentTab) {
+                entertainmentTab.addEventListener('click', loadEntertainmentData);
+            }
+            
+            const spaceTab = document.querySelector('[onclick*="space"]');
+            if (spaceTab) {
+                spaceTab.addEventListener('click', loadSpaceData);
+            }
+        }
+        
+        async function loadImmersiveData() {
+            try {
+                showImmersiveLoading();
+                
+                const response = await fetch('/api/immersive/comprehensive');
+                const data = await response.json();
+                
+                if (data.error) {
+                    showImmersiveError(data.message);
+                    return;
+                }
+                
+                immersiveDataCache = data;
+                updateImmersiveWidgets(data);
+                updateImmersiveNews(data.news);
+                updateImmersiveSentiment(data.news);
+                
+            } catch (error) {
+                console.error('Failed to load immersive data:', error);
+                showImmersiveError('Failed to load immersive data');
+            }
+        }
+        
+        function updateImmersiveWidgets(data) {
+            // Update weather widget
+            if (data.weather) {
+                const weatherDiv = document.getElementById('current-weather');
+                if (weatherDiv) {
+                    weatherDiv.innerHTML = `
+                        <div>${data.weather.temperature}°C</div>
+                        <div class="text-xs">${data.weather.city}</div>
+                    `;
+                }
+            }
+            
+            // Update quote widget
+            if (data.quotes_facts && data.quotes_facts.length > 0) {
+                const quoteDiv = document.getElementById('daily-quote');
+                if (quoteDiv) {
+                    const quote = data.quotes_facts.find(item => item.type === 'quote');
+                    if (quote) {
+                        quoteDiv.innerHTML = `
+                            <div class="text-xs italic">"${quote.content.substring(0, 50)}..."</div>
+                            <div class="text-xs">- ${quote.author}</div>
+                        `;
+                    }
+                }
+            }
+            
+            // Update GitHub trending
+            if (data.github_trending && data.github_trending.length > 0) {
+                const githubDiv = document.getElementById('github-trending');
+                if (githubDiv) {
+                    const top = data.github_trending[0];
+                    githubDiv.innerHTML = `
+                        <div class="text-xs">${top.name}</div>
+                        <div class="text-xs">⭐ ${top.stars}</div>
+                    `;
+                }
+            }
+            
+            // Update space widget
+            if (data.space) {
+                const spaceDiv = document.getElementById('space-data');
+                if (spaceDiv) {
+                    spaceDiv.innerHTML = `
+                        <div class="text-xs">ISS People: ${data.space.people_in_space || 0}</div>
+                        <div class="text-xs">Live Tracking</div>
+                    `;
+                }
+            }
+        }
+        
+        function updateImmersiveNews(newsItems) {
+            const newsDiv = document.getElementById('immersive-news');
+            if (!newsDiv || !newsItems) return;
+            
+            const newsHtml = newsItems.slice(0, 10).map(article => `
+                <div class="glass-card p-3">
+                    <h5 class="font-semibold text-sm mb-1">${article.title}</h5>
+                    <p class="text-xs text-secondary mb-2">${article.summary.substring(0, 100)}...</p>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-primary">${article.source}</span>
+                        <span class="sentiment-badge sentiment-${article.sentiment || 'neutral'}">
+                            ${(article.sentiment || 'neutral').toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+            
+            newsDiv.innerHTML = newsHtml;
+        }
+        
+        function updateImmersiveSentiment(newsItems) {
+            if (!newsItems) return;
+            
+            // Calculate sentiment distribution
+            const sentiments = { positive: 0, neutral: 0, negative: 0 };
+            let total = 0;
+            
+            newsItems.forEach(article => {
+                if (article.sentiment) {
+                    sentiments[article.sentiment]++;
+                    total++;
+                }
+            });
+            
+            if (total > 0) {
+                const positivePercent = ((sentiments.positive / total) * 100).toFixed(1);
+                const neutralPercent = ((sentiments.neutral / total) * 100).toFixed(1);
+                const negativePercent = ((sentiments.negative / total) * 100).toFixed(1);
+                
+                document.getElementById('immersive-positive').textContent = positivePercent + '%';
+                document.getElementById('immersive-neutral').textContent = neutralPercent + '%';
+                document.getElementById('immersive-negative').textContent = negativePercent + '%';
+                
+                // Update chart if it exists
+                updateImmersiveSentimentChart(sentiments);
+            }
+        }
+        
+        function updateImmersiveSentimentChart(sentiments) {
+            const canvas = document.getElementById('immersive-sentiment-chart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (chartInstances.immersiveSentiment) {
+                chartInstances.immersiveSentiment.destroy();
+            }
+            
+            chartInstances.immersiveSentiment = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positive', 'Neutral', 'Negative'],
+                    datasets: [{
+                        data: [sentiments.positive, sentiments.neutral, sentiments.negative],
+                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') }
+                        }
+                    }
+                }
+            });
+        }
+        
+        async function loadCryptoData() {
+            try {
+                const response = await fetch('/api/immersive/crypto');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Crypto data error:', data.error);
+                    return;
+                }
+                
+                updateCryptoPrices(data.crypto_prices);
+                updateCryptoNews(data.crypto_news);
+                
+            } catch (error) {
+                console.error('Failed to load crypto data:', error);
+            }
+        }
+        
+        function updateCryptoPrices(prices) {
+            const pricesDiv = document.getElementById('crypto-prices');
+            if (!pricesDiv || !prices) return;
+            
+            const pricesHtml = prices.map(crypto => `
+                <div class="flex justify-between items-center p-3 glass-card">
+                    <div>
+                        <div class="font-semibold">${crypto.name}</div>
+                        <div class="text-xs text-secondary">$${crypto.price.toFixed(2)}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="${crypto.change_24h >= 0 ? 'text-success' : 'text-error'}">
+                            ${crypto.change_24h >= 0 ? '+' : ''}${crypto.change_24h.toFixed(2)}%
+                        </div>
+                        <div class="text-xs text-secondary">24h</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            pricesDiv.innerHTML = pricesHtml;
+        }
+        
+        function updateCryptoNews(cryptoNews) {
+            const newsDiv = document.getElementById('crypto-news');
+            if (!newsDiv || !cryptoNews) return;
+            
+            const newsHtml = cryptoNews.map(article => `
+                <div class="glass-card p-3">
+                    <h5 class="font-semibold text-sm mb-1">${article.title}</h5>
+                    <p class="text-xs text-secondary mb-2">${article.summary}</p>
+                    <div class="text-xs text-primary">${article.source}</div>
+                </div>
+            `).join('');
+            
+            newsDiv.innerHTML = newsHtml;
+        }
+        
+        async function loadEntertainmentData() {
+            try {
+                const response = await fetch('/api/immersive/entertainment');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Entertainment data error:', data.error);
+                    return;
+                }
+                
+                updateJokes(data.entertainment);
+                updateFacts(data.quotes_and_facts);
+                updateThemeShowcase(data.github_trending);
+                
+            } catch (error) {
+                console.error('Failed to load entertainment data:', error);
+            }
+        }
+        
+        function updateJokes(entertainment) {
+            const jokesDiv = document.getElementById('jokes-content');
+            if (!jokesDiv || !entertainment) return;
+            
+            const jokes = entertainment.filter(item => item.type === 'joke');
+            if (jokes.length > 0) {
+                const joke = jokes[0];
+                jokesDiv.innerHTML = `
+                    <div class="glass-card p-4">
+                        <p class="text-sm">${joke.content}</p>
+                        <div class="text-xs text-secondary mt-2">Source: ${joke.source}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateFacts(quotesAndFacts) {
+            const factsDiv = document.getElementById('facts-content');
+            if (!factsDiv || !quotesAndFacts) return;
+            
+            const facts = quotesAndFacts.filter(item => item.type === 'fact');
+            if (facts.length > 0) {
+                const fact = facts[0];
+                factsDiv.innerHTML = `
+                    <div class="glass-card p-4">
+                        <p class="text-sm">${fact.content}</p>
+                        <div class="text-xs text-secondary mt-2">Source: ${fact.source}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadSpaceData() {
+            try {
+                const response = await fetch('/api/immersive/space');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Space data error:', data.error);
+                    return;
+                }
+                
+                updateISSData(data.space_data);
+                updateAstronauts(data.space_data);
+                
+            } catch (error) {
+                console.error('Failed to load space data:', error);
+            }
+        }
+        
+        function updateISSData(spaceData) {
+            const issDiv = document.getElementById('iss-data');
+            if (!issDiv || !spaceData) return;
+            
+            if (spaceData.iss_location) {
+                issDiv.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Latitude:</span>
+                            <span>${parseFloat(spaceData.iss_location.latitude).toFixed(2)}°</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Longitude:</span>
+                            <span>${parseFloat(spaceData.iss_location.longitude).toFixed(2)}°</span>
+                        </div>
+                        <div class="text-xs text-secondary">Live ISS Position</div>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateAstronauts(spaceData) {
+            const astronautsDiv = document.getElementById('astronauts-data');
+            if (!astronautsDiv || !spaceData) return;
+            
+            if (spaceData.astronauts) {
+                const astronautsHtml = spaceData.astronauts.slice(0, 5).map(person => `
+                    <div class="flex justify-between items-center p-2 glass-card">
+                        <span>${person.name}</span>
+                        <span class="text-xs text-secondary">${person.craft}</span>
+                    </div>
+                `).join('');
+                
+                astronautsDiv.innerHTML = astronautsHtml;
+            }
+        }
+        
+        function startImmersiveUpdates() {
+            // Update immersive data every 5 minutes
+            if (immersiveUpdateInterval) {
+                clearInterval(immersiveUpdateInterval);
+            }
+            
+            immersiveUpdateInterval = setInterval(() => {
+                const currentTab = document.querySelector('.tab-pane.active');
+                if (currentTab && currentTab.id === 'immersive') {
+                    loadImmersiveData();
+                }
+            }, 300000); // 5 minutes
+        }
+        
+        function showImmersiveLoading() {
+            const widgets = ['current-weather', 'daily-quote', 'github-trending', 'space-data'];
+            widgets.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                }
+            });
+        }
+        
+        function showImmersiveError(message) {
+            const newsDiv = document.getElementById('immersive-news');
+            if (newsDiv) {
+                newsDiv.innerHTML = `
+                    <div class="text-center text-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>${message}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Individual update functions for manual refresh
+        async function loadNewJoke() {
+            try {
+                const response = await fetch('/api/immersive/entertainment');
+                const data = await response.json();
+                updateJokes(data.entertainment);
+            } catch (error) {
+                console.error('Failed to load new joke:', error);
+            }
+        }
+        
+        async function loadNewFact() {
+            try {
+                const response = await fetch('/api/immersive/entertainment');
+                const data = await response.json();
+                updateFacts(data.quotes_and_facts);
+            } catch (error) {
+                console.error('Failed to load new fact:', error);
+            }
+        }
+        
+        async function generateNewTheme() {
+            try {
+                const response = await fetch('/api/immersive/theme');
+                const data = await response.json();
+                
+                if (data.theme && data.theme.palette) {
+                    const showcase = document.getElementById('theme-showcase');
+                    if (showcase) {
+                        const colorsHtml = data.theme.palette.map(color => `
+                            <div class="w-16 h-16 rounded-lg cursor-pointer" 
+                                 style="background-color: ${color}" 
+                                 title="${color}"
+                                 onclick="applyThemeColor('${color}')">
+                            </div>
+                        `).join('');
+                        showcase.innerHTML = colorsHtml;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to generate new theme:', error);
+            }
+        }
+        
+        function applyThemeColor(color) {
+            document.documentElement.style.setProperty('--primary', color);
+            // Create a notification
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 glass-card p-4 z-50';
+            notification.innerHTML = `
+                <i class="fas fa-palette text-primary"></i>
+                Theme color applied!
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
     """
     
-    return html_template
+    # Define missing variables for template
+    status = "active"
+    message = "Dashboard ready"
+    chart_data = sentiment_data
+    template_data = {
+        'stats': stats,
+        'trend_analysis': trend_analysis,
+        'sentiment_data': sentiment_data
+    }
+    
+    return render_template_string(html_template, status=status, message=message, chart_data=chart_data, **template_data)
 
 @app.route('/api/news')
 def get_news():
@@ -3066,6 +3750,270 @@ def get_analytics_summary():
     except Exception as e:
         logger.error(f"Analytics summary error: {e}")
         return jsonify({'error': 'Failed to generate analytics summary'}), 500
+
+# ===== NEW IMMERSIVE API ENDPOINTS - All Free, No Signup Required! =====
+
+@app.route('/api/immersive/comprehensive')
+def get_comprehensive_data():
+    """Get all immersive data in one call - News, crypto, weather, quotes, entertainment, etc."""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({
+                'error': 'Immersive APIs not available',
+                'message': 'Enhanced features require the immersive API integrator'
+            }), 503
+        
+        logger.info("Fetching comprehensive immersive data...")
+        comprehensive_data = api_integrator.get_comprehensive_data()
+        
+        # Analyze sentiment for news items
+        if comprehensive_data.get('news'):
+            for article in comprehensive_data['news'][:10]:  # Limit sentiment analysis
+                try:
+                    if article.get('title'):
+                        sentiment_result = enhanced_sentiment_analyzer.analyze_sentiment(
+                            article['title'] + ' ' + article.get('summary', '')[:100]
+                        )
+                        article['sentiment'] = sentiment_result.sentiment
+                        article['confidence'] = sentiment_result.confidence
+                except Exception as e:
+                    logger.debug(f"Sentiment analysis failed for article: {e}")
+                    article['sentiment'] = 'neutral'
+                    article['confidence'] = 0.5
+        
+        return jsonify(comprehensive_data)
+        
+    except Exception as e:
+        logger.error(f"Comprehensive data error: {e}")
+        return jsonify({'error': 'Failed to fetch comprehensive data'}), 500
+
+@app.route('/api/immersive/news')
+def get_immersive_news():
+    """Get news from next-generation aggregator with sentiment analysis"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        # Get categorized news
+        categorized_news = next_gen_news.get_categorized_news()
+        
+        # Add sentiment analysis to each article
+        for category, articles in categorized_news.items():
+            for article in articles[:5]:  # Limit processing
+                try:
+                    text_to_analyze = f"{article.title} {article.summary[:100]}"
+                    sentiment_result = enhanced_sentiment_analyzer.analyze_sentiment(text_to_analyze)
+                    article.sentiment_score = sentiment_result.confidence
+                    # Convert dataclass to dict for JSON response
+                    if hasattr(article, '__dict__'):
+                        article_dict = article.__dict__
+                        article_dict['sentiment'] = sentiment_result.sentiment
+                        article_dict['sentiment_confidence'] = sentiment_result.confidence
+                except Exception as e:
+                    logger.debug(f"Sentiment analysis failed: {e}")
+        
+        # Convert dataclasses to dictionaries
+        serializable_news = {}
+        for category, articles in categorized_news.items():
+            serializable_news[category] = [
+                article.__dict__ if hasattr(article, '__dict__') else article 
+                for article in articles
+            ]
+        
+        return jsonify({
+            'categorized_news': serializable_news,
+            'trending_topics': next_gen_news.get_trending_topics(),
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Next-Gen News Aggregator'
+        })
+        
+    except Exception as e:
+        logger.error(f"Immersive news error: {e}")
+        return jsonify({'error': 'Failed to fetch immersive news'}), 500
+
+@app.route('/api/immersive/crypto')
+def get_crypto_data():
+    """Get cryptocurrency data and news"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        crypto_news = api_integrator.get_crypto_news()
+        crypto_prices = finance_aggregator.get_crypto_prices()
+        
+        return jsonify({
+            'crypto_news': crypto_news,
+            'crypto_prices': crypto_prices,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Crypto data error: {e}")
+        return jsonify({'error': 'Failed to fetch crypto data'}), 500
+
+@app.route('/api/immersive/entertainment')
+def get_entertainment_data():
+    """Get jokes, quotes, memes, and entertainment content"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        quotes_facts = api_integrator.get_quotes_and_facts()
+        entertainment = api_integrator.get_memes_and_jokes()
+        github_trending = api_integrator.get_github_trending()
+        
+        return jsonify({
+            'quotes_and_facts': quotes_facts,
+            'entertainment': entertainment,
+            'github_trending': github_trending,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Entertainment data error: {e}")
+        return jsonify({'error': 'Failed to fetch entertainment data'}), 500
+
+@app.route('/api/immersive/weather')
+def get_weather_data():
+    """Get weather data"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        city = request.args.get('city', 'Nairobi')
+        weather = api_integrator.get_weather_data(city)
+        
+        return jsonify({
+            'weather': weather,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Weather data error: {e}")
+        return jsonify({'error': 'Failed to fetch weather data'}), 500
+
+@app.route('/api/immersive/social')
+def get_social_trends():
+    """Get social media trends and discussions"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        trending_topics = social_aggregator.get_trending_topics()
+        
+        return jsonify({
+            'trending_topics': trending_topics,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Social trends error: {e}")
+        return jsonify({'error': 'Failed to fetch social trends'}), 500
+
+@app.route('/api/immersive/space')
+def get_space_data():
+    """Get space and astronomy data"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        space_data = api_integrator.get_space_data()
+        
+        return jsonify({
+            'space_data': space_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Space data error: {e}")
+        return jsonify({'error': 'Failed to fetch space data'}), 500
+
+@app.route('/api/immersive/theme')
+def get_ui_theme():
+    """Get dynamic UI theme colors"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        theme = api_integrator.get_color_palette()
+        
+        return jsonify({
+            'theme': theme,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Theme data error: {e}")
+        return jsonify({'error': 'Failed to fetch theme data'}), 500
+
+@app.route('/api/immersive/sentiment-batch', methods=['POST'])
+def analyze_batch_sentiment():
+    """Analyze sentiment for multiple texts with enhanced features"""
+    try:
+        if not IMMERSIVE_APIS_AVAILABLE:
+            return jsonify({'error': 'Immersive APIs not available'}), 503
+        
+        data = request.get_json()
+        if not data or 'texts' not in data:
+            return jsonify({'error': 'No texts provided'}), 400
+        
+        texts = data['texts'][:50]  # Limit batch size
+        results = []
+        
+        for text in texts:
+            try:
+                sentiment_result = enhanced_sentiment_analyzer.analyze_sentiment(text)
+                results.append({
+                    'text': text[:100] + '...' if len(text) > 100 else text,
+                    'sentiment': sentiment_result.sentiment,
+                    'confidence': sentiment_result.confidence,
+                    'scores': sentiment_result.scores,
+                    'model_used': sentiment_result.model_used,
+                    'processing_time': sentiment_result.processing_time
+                })
+            except Exception as e:
+                logger.debug(f"Batch sentiment analysis failed for text: {e}")
+                results.append({
+                    'text': text[:100] + '...' if len(text) > 100 else text,
+                    'sentiment': 'neutral',
+                    'confidence': 0.5,
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'results': results,
+            'total_analyzed': len(results),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Batch sentiment analysis error: {e}")
+        return jsonify({'error': 'Failed to analyze batch sentiment'}), 500
+
+@app.route('/api/immersive/status')
+def get_immersive_status():
+    """Get status of all immersive APIs"""
+    try:
+        status = {
+            'immersive_apis_available': IMMERSIVE_APIS_AVAILABLE,
+            'enhanced_components_available': REAL_COMPONENTS_AVAILABLE,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        if IMMERSIVE_APIS_AVAILABLE:
+            # Test API availability
+            try:
+                test_data = api_integrator.get_comprehensive_data()
+                status['apis_tested'] = len(test_data)
+                status['last_successful_call'] = datetime.now().isoformat()
+            except Exception as e:
+                status['api_test_error'] = str(e)
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        logger.error(f"Status check error: {e}")
+        return jsonify({'error': 'Failed to get status'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))
