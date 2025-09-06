@@ -33,48 +33,32 @@ import requests
 import feedparser
 from urllib.parse import urljoin, urlparse
 
-# Enhanced components - Production ready
+# Simplified imports - using only basic libraries
+PRODUCTION_CONFIG_AVAILABLE = False
+ENHANCED_SENTIMENT_AVAILABLE = False
+REAL_NLP_AVAILABLE = False
+REAL_COMPONENTS_AVAILABLE = False
+
+# Basic sentiment analysis using TextBlob (lightweight)
 try:
-    from enhanced_sentiment_analyzer import EnhancedSentimentAnalyzer, SentimentResult
-    from news_ingest import KenyanNewsIngestor
-    from config_manager import get_production_settings
-    from enhanced_database import real_db_manager, db
-    
-    # Initialize enhanced components
-    enhanced_sentiment_analyzer = EnhancedSentimentAnalyzer()
-    kenyan_news_ingestor = KenyanNewsIngestor()
-    production_settings = get_production_settings()
-    
-    REAL_COMPONENTS_AVAILABLE = True
-    logger.info("✅ Enhanced production components loaded successfully")
-    
-    # Legacy compatibility - alias the enhanced analyzer
-    real_sentiment_analyzer = enhanced_sentiment_analyzer
-    nlp_engine = enhanced_sentiment_analyzer  # NLP engine compatibility
-    
-except ImportError as e:
-    print(f"Warning: Could not import enhanced components: {e}")
-    try:
-        # Fallback to original components
-        from real_nlp_engine import nlp_engine, RealNLPEngine
-        from real_database import real_db_manager, db
-        from real_news_scraper import news_scraper, get_sample_news_data
-        from real_video_extractor import real_video_extractor
-        from real_news_aggregator import comprehensive_news_aggregator
-        from real_sentiment_analyzer import real_sentiment_analyzer
-        REAL_COMPONENTS_AVAILABLE = True
-        logger.info("✅ All real components loaded successfully")
-    except ImportError as e2:
-        print(f"Warning: Could not import real components: {e2}")
-        try:
-            # Fallback to individual API integration
-            from real_news_aggregator import comprehensive_news_aggregator
-            from real_sentiment_analyzer import real_sentiment_analyzer
-            REAL_COMPONENTS_AVAILABLE = True
-            logger.info("✅ Real news and sentiment analysis components loaded")
-        except ImportError as e3:
-            print(f"Warning: Could not import any real components: {e3}")
-            REAL_COMPONENTS_AVAILABLE = False
+    from textblob import TextBlob
+    TEXTBLOB_AVAILABLE = True
+    logger.info("✅ TextBlob sentiment analyzer loaded")
+except ImportError:
+    TEXTBLOB_AVAILABLE = False
+    logger.warning("TextBlob not available, using basic sentiment")
+
+# Initialize placeholders
+enhanced_sentiment_analyzer = None
+nlp_engine = None
+advanced_analytics = None
+social_analyzer = None
+video_processor = None
+news_aggregator = None
+real_time_processor = None
+
+# Skip all problematic imports - use basic functionality only
+logger.info("Using simplified dashboard without complex dependencies")
 
 # Simple fallback database class
 class SimpleDB:
@@ -84,99 +68,130 @@ class SimpleDB:
     def create_all(self):
         pass
 
-# Fallback components for development
-if not REAL_COMPONENTS_AVAILABLE:
-    # Mock classes for fallback
-    class MockNLPEngine:
-        def analyze_sentiment(self, text, model_preference='auto'):
-            # Try to use real sentiment analyzer if available
+# Always use fallback components to avoid dependency issues
+REAL_COMPONENTS_AVAILABLE = False
+
+# Mock classes for fallback
+class MockNLPEngine:
+    def analyze_sentiment(self, text, model_preference='auto'):
+        # Use TextBlob if available, otherwise basic sentiment
+        if TEXTBLOB_AVAILABLE:
             try:
-                return real_sentiment_analyzer.analyze_sentiment(text, 'roberta')
-            except:
+                blob = TextBlob(text)
+                polarity = blob.sentiment.polarity
+                
+                if polarity > 0.1:
+                    sentiment = 'positive'
+                    confidence = min(0.5 + polarity * 0.5, 0.95)
+                elif polarity < -0.1:
+                    sentiment = 'negative'
+                    confidence = min(0.5 + abs(polarity) * 0.5, 0.95)
+                else:
+                    sentiment = 'neutral'
+                    confidence = 0.6
+                
+                # Calculate scores
+                pos_score = max(0, polarity) 
+                neg_score = max(0, -polarity)
+                neu_score = 1 - abs(polarity)
+                
                 return type('SentimentResult', (), {
                     'text': text[:200],
-                    'sentiment': 'positive',
-                    'confidence': 0.85,
-                    'scores': {'positive': 0.7, 'negative': 0.1, 'neutral': 0.2},
-                    'model_used': 'mock',
+                    'sentiment': sentiment,
+                    'confidence': round(confidence, 3),
+                    'scores': {
+                        'positive': round(pos_score, 3),
+                        'negative': round(neg_score, 3),
+                        'neutral': round(neu_score, 3)
+                    },
+                    'model_used': 'textblob',
                     'processing_time': 0.1,
                     'language': 'en',
-                    'emotion_scores': {'joy': 0.8, 'anger': 0.1},
+                    'emotion_scores': {'joy': round(max(0, polarity), 3), 'anger': round(max(0, -polarity), 3)},
                     'toxicity_score': 0.1,
                     'bias_score': 0.2,
-                    'metadata': {'mock': True}
+                    'metadata': {'textblob': True}
                 })()
+            except Exception as e:
+                logger.error(f"TextBlob error: {e}")
         
-        def get_model_info(self):
-            return {'available_models': ['mock'], 'device': 'cpu'}
+        # Basic fallback
+        return type('SentimentResult', (), {
+            'text': text[:200],
+            'sentiment': 'neutral',
+            'confidence': 0.5,
+            'scores': {'positive': 0.33, 'negative': 0.33, 'neutral': 0.34},
+            'model_used': 'basic',
+            'processing_time': 0.01,
+            'language': 'en',
+            'emotion_scores': {'neutral': 1.0},
+            'toxicity_score': 0.0,
+            'bias_score': 0.0,
+            'metadata': {'basic': True}
+        })()
     
-    class MockDatabaseManager:
-        def save_sentiment_analysis(self, result, **kwargs):
-            return 1
-        
-        def get_recent_analyses(self, limit=50, offset=0):
-            return []
-        
-        def get_analytics_summary(self, days=7):
-            return {
-                'total_analyses': 0,
-                'sentiment_distribution': {'positive': 0, 'negative': 0, 'neutral': 0},
-                'average_confidence': 0.0,
-                'daily_trends': []
-            }
-        
-        def get_dashboard_summary(self):
-            return {
-                'today': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'mock'},
-                'week': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'mock'}
-            }
-        
-        def init_app(self, app):
-            pass
+    def get_model_info(self):
+        return {'available_models': ['textblob', 'basic'], 'device': 'cpu'}
     
-    class MockVideoExtractor:
-        def extract_from_file(self, file_path):
-            return {
-                'title': 'Mock Video',
-                'duration': 120,
-                'width': 1920,
-                'height': 1080,
-                'file_size': 1000000,
-                'transcript': 'This is a mock transcript'
-            }
-        
-        def extract_from_url(self, url):
-            return {
-                'title': 'Mock Video from URL',
-                'duration': 180,
-                'url': url,
-                'view_count': 1000
-            }
+class MockDatabaseManager:
+    def save_sentiment_analysis(self, result, **kwargs):
+        return 1
     
-    # Use mock components
-    nlp_engine = MockNLPEngine()
-    real_db_manager = MockDatabaseManager()
-    real_video_extractor = MockVideoExtractor()
-    db = SimpleDB()  # Simple database fallback
+    def get_recent_analyses(self, limit=50, offset=0):
+        return []
     
-    # Try to import real components anyway
-    try:
-        from real_news_aggregator import comprehensive_news_aggregator as real_news_aggregator
-        from real_sentiment_analyzer import real_sentiment_analyzer
-        logger.info("✅ Real API components imported for fallback")
-    except ImportError:
-        # Create basic fallback components
-        class BasicNewsAggregator:
-            def get_comprehensive_news(self, limit=20, category=None):
-                return get_sample_news_data(limit)
-        
-        class BasicSentimentAnalyzer:
-            def analyze_sentiment(self, text, model='roberta'):
-                return MockNLPEngine().analyze_sentiment(text)
-        
-        real_news_aggregator = BasicNewsAggregator()
-        real_sentiment_analyzer = BasicSentimentAnalyzer()
-        logger.info("Using basic fallback components")
+    def get_analytics_summary(self, days=7):
+        return {
+            'total_analyses': 0,
+            'sentiment_distribution': {'positive': 0, 'negative': 0, 'neutral': 0},
+            'average_confidence': 0.0,
+            'daily_trends': []
+        }
+    
+    def get_dashboard_summary(self):
+        return {
+            'today': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'textblob'},
+            'week': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'textblob'}
+        }
+    
+    def init_app(self, app):
+        pass
+
+class MockVideoExtractor:
+    def extract_from_file(self, file_path):
+        return {
+            'title': 'Mock Video',
+            'duration': 120,
+            'width': 1920,
+            'height': 1080,
+            'file_size': 1000000,
+            'transcript': 'This is a mock transcript'
+        }
+    
+    def extract_from_url(self, url):
+        return {
+            'title': 'Mock Video from URL',
+            'duration': 180,
+            'url': url,
+            'view_count': 1000
+        }
+
+class BasicNewsAggregator:
+    def get_comprehensive_news(self, limit=20, category=None):
+        return get_sample_news_data(limit)
+
+class BasicSentimentAnalyzer:
+    def analyze_sentiment(self, text, model='textblob'):
+        return MockNLPEngine().analyze_sentiment(text)
+
+# Use mock components
+nlp_engine = MockNLPEngine()
+real_db_manager = MockDatabaseManager()
+real_video_extractor = MockVideoExtractor()
+db = SimpleDB()  # Simple database fallback
+real_news_aggregator = BasicNewsAggregator()
+real_sentiment_analyzer = BasicSentimentAnalyzer()
+logger.info("Using simplified components without complex dependencies")
 
 # Global fallback function for news data
 def get_sample_news_data(limit=20):
@@ -3894,6 +3909,186 @@ def get_analytics_summary():
     except Exception as e:
         logger.error(f"Analytics summary error: {e}")
         return jsonify({'error': 'Failed to generate analytics summary'}), 500
+
+@app.route('/api/batch-analyze', methods=['POST'])
+def batch_analyze_route():
+    """Analyze multiple texts at once"""
+    try:
+        data = request.get_json()
+        texts = data.get('texts', [])
+        
+        if not texts or not isinstance(texts, list):
+            return jsonify({'error': 'Texts array is required'}), 400
+        
+        if len(texts) > 50:
+            return jsonify({'error': 'Maximum 50 texts allowed per batch'}), 400
+        
+        results = []
+        for i, text in enumerate(texts):
+            if not text or len(text.strip()) == 0:
+                continue
+                
+            if len(text) > 1000:  # Shorter limit for batch
+                text = text[:1000] + "..."
+            
+            # Analyze sentiment
+            result = nlp_engine.analyze_sentiment(text)
+            
+            results.append({
+                'index': i,
+                'text': text[:200] + "..." if len(text) > 200 else text,
+                'sentiment': result.sentiment,
+                'confidence': round(result.confidence, 3),
+                'scores': result.scores
+            })
+        
+        return jsonify({
+            'success': True,
+            'total_analyzed': len(results),
+            'results': results,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Batch analysis error: {e}")
+        return jsonify({'error': 'Batch analysis failed'}), 500
+
+@app.route('/api/export/<format>')
+def export_data(format):
+    """Export analysis results in CSV or JSON format"""
+    try:
+        # Get recent analyses (mock data for now)
+        sample_data = [
+            {
+                'timestamp': datetime.now().isoformat(),
+                'text': 'Sample positive text',
+                'sentiment': 'positive',
+                'confidence': 0.85,
+                'positive_score': 0.8,
+                'negative_score': 0.1,
+                'neutral_score': 0.1
+            },
+            {
+                'timestamp': (datetime.now() - timedelta(minutes=5)).isoformat(),
+                'text': 'Sample negative text',
+                'sentiment': 'negative',
+                'confidence': 0.75,
+                'positive_score': 0.1,
+                'negative_score': 0.8,
+                'neutral_score': 0.1
+            }
+        ]
+        
+        if format.lower() == 'csv':
+            import io
+            import csv
+            
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=['timestamp', 'text', 'sentiment', 'confidence', 'positive_score', 'negative_score', 'neutral_score'])
+            writer.writeheader()
+            writer.writerows(sample_data)
+            
+            response = app.response_class(
+                output.getvalue(),
+                mimetype='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=sentiment_analysis.csv'}
+            )
+            return response
+            
+        elif format.lower() == 'json':
+            response = app.response_class(
+                json.dumps(sample_data, indent=2),
+                mimetype='application/json',
+                headers={'Content-Disposition': 'attachment; filename=sentiment_analysis.json'}
+            )
+            return response
+        else:
+            return jsonify({'error': 'Unsupported format. Use csv or json'}), 400
+            
+    except Exception as e:
+        logger.error(f"Export error: {e}")
+        return jsonify({'error': 'Export failed'}), 500
+
+@app.route('/api/text-stats', methods=['POST'])
+def text_stats_route():
+    """Get detailed text statistics and readability metrics"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+        
+        # Basic statistics
+        words = text.split()
+        sentences = text.split('.')
+        paragraphs = text.split('\n\n')
+        
+        # Character analysis
+        chars_total = len(text)
+        chars_no_spaces = len(text.replace(' ', ''))
+        
+        # Word analysis
+        word_lengths = [len(word.strip('.,!?;:"()[]{}')) for word in words if word.strip()]
+        avg_word_length = sum(word_lengths) / len(word_lengths) if word_lengths else 0
+        
+        # Sentence analysis
+        sentence_lengths = [len(sentence.split()) for sentence in sentences if sentence.strip()]
+        avg_sentence_length = sum(sentence_lengths) / len(sentence_lengths) if sentence_lengths else 0
+        
+        # Simple readability score (Flesch-like approximation)
+        if sentence_lengths and word_lengths:
+            readability_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * (avg_word_length / len(words)))
+            readability_score = max(0, min(100, readability_score))  # Clamp between 0-100
+        else:
+            readability_score = 50
+        
+        # Readability level
+        if readability_score >= 90:
+            readability_level = "Very Easy"
+        elif readability_score >= 80:
+            readability_level = "Easy"
+        elif readability_score >= 70:
+            readability_level = "Fairly Easy"
+        elif readability_score >= 60:
+            readability_level = "Standard"
+        elif readability_score >= 50:
+            readability_level = "Fairly Difficult"
+        elif readability_score >= 30:
+            readability_level = "Difficult"
+        else:
+            readability_level = "Very Difficult"
+        
+        return jsonify({
+            'success': True,
+            'statistics': {
+                'characters': {
+                    'total': chars_total,
+                    'without_spaces': chars_no_spaces,
+                    'spaces': chars_total - chars_no_spaces
+                },
+                'words': {
+                    'total': len(words),
+                    'unique': len(set(word.lower().strip('.,!?;:"()[]{}') for word in words)),
+                    'average_length': round(avg_word_length, 2)
+                },
+                'sentences': {
+                    'total': len([s for s in sentences if s.strip()]),
+                    'average_length': round(avg_sentence_length, 2)
+                },
+                'paragraphs': len([p for p in paragraphs if p.strip()]),
+                'readability': {
+                    'score': round(readability_score, 1),
+                    'level': readability_level,
+                    'description': f"Text is {readability_level.lower()} to read"
+                }
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Text stats error: {e}")
+        return jsonify({'error': 'Failed to calculate text statistics'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))
