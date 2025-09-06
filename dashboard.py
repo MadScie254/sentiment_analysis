@@ -33,32 +33,48 @@ import requests
 import feedparser
 from urllib.parse import urljoin, urlparse
 
-# Simplified imports - using only basic libraries
-PRODUCTION_CONFIG_AVAILABLE = False
-ENHANCED_SENTIMENT_AVAILABLE = False
-REAL_NLP_AVAILABLE = False
-REAL_COMPONENTS_AVAILABLE = False
-
-# Basic sentiment analysis using TextBlob (lightweight)
+# Enhanced components - Production ready
 try:
-    from textblob import TextBlob
-    TEXTBLOB_AVAILABLE = True
-    logger.info("✅ TextBlob sentiment analyzer loaded")
-except ImportError:
-    TEXTBLOB_AVAILABLE = False
-    logger.warning("TextBlob not available, using basic sentiment")
-
-# Initialize placeholders
-enhanced_sentiment_analyzer = None
-nlp_engine = None
-advanced_analytics = None
-social_analyzer = None
-video_processor = None
-news_aggregator = None
-real_time_processor = None
-
-# Skip all problematic imports - use basic functionality only
-logger.info("Using simplified dashboard without complex dependencies")
+    from enhanced_sentiment_analyzer import EnhancedSentimentAnalyzer, SentimentResult
+    from news_ingest import KenyanNewsIngestor
+    from config_manager import get_production_settings
+    from enhanced_database import real_db_manager, db
+    
+    # Initialize enhanced components
+    enhanced_sentiment_analyzer = EnhancedSentimentAnalyzer()
+    kenyan_news_ingestor = KenyanNewsIngestor()
+    production_settings = get_production_settings()
+    
+    REAL_COMPONENTS_AVAILABLE = True
+    logger.info("✅ Enhanced production components loaded successfully")
+    
+    # Legacy compatibility - alias the enhanced analyzer
+    real_sentiment_analyzer = enhanced_sentiment_analyzer
+    nlp_engine = enhanced_sentiment_analyzer  # NLP engine compatibility
+    
+except ImportError as e:
+    print(f"Warning: Could not import enhanced components: {e}")
+    try:
+        # Fallback to original components
+        from real_nlp_engine import nlp_engine, RealNLPEngine
+        from real_database import real_db_manager, db
+        from real_news_scraper import news_scraper, get_sample_news_data
+        from real_video_extractor import real_video_extractor
+        from real_news_aggregator import comprehensive_news_aggregator
+        from real_sentiment_analyzer import real_sentiment_analyzer
+        REAL_COMPONENTS_AVAILABLE = True
+        logger.info("✅ All real components loaded successfully")
+    except ImportError as e2:
+        print(f"Warning: Could not import real components: {e2}")
+        try:
+            # Fallback to individual API integration
+            from real_news_aggregator import comprehensive_news_aggregator
+            from real_sentiment_analyzer import real_sentiment_analyzer
+            REAL_COMPONENTS_AVAILABLE = True
+            logger.info("✅ Real news and sentiment analysis components loaded")
+        except ImportError as e3:
+            print(f"Warning: Could not import any real components: {e3}")
+            REAL_COMPONENTS_AVAILABLE = False
 
 # Simple fallback database class
 class SimpleDB:
@@ -68,130 +84,99 @@ class SimpleDB:
     def create_all(self):
         pass
 
-# Always use fallback components to avoid dependency issues
-REAL_COMPONENTS_AVAILABLE = False
-
-# Mock classes for fallback
-class MockNLPEngine:
-    def analyze_sentiment(self, text, model_preference='auto'):
-        # Use TextBlob if available, otherwise basic sentiment
-        if TEXTBLOB_AVAILABLE:
+# Fallback components for development
+if not REAL_COMPONENTS_AVAILABLE:
+    # Mock classes for fallback
+    class MockNLPEngine:
+        def analyze_sentiment(self, text, model_preference='auto'):
+            # Try to use real sentiment analyzer if available
             try:
-                blob = TextBlob(text)
-                polarity = blob.sentiment.polarity
-                
-                if polarity > 0.1:
-                    sentiment = 'positive'
-                    confidence = min(0.5 + polarity * 0.5, 0.95)
-                elif polarity < -0.1:
-                    sentiment = 'negative'
-                    confidence = min(0.5 + abs(polarity) * 0.5, 0.95)
-                else:
-                    sentiment = 'neutral'
-                    confidence = 0.6
-                
-                # Calculate scores
-                pos_score = max(0, polarity) 
-                neg_score = max(0, -polarity)
-                neu_score = 1 - abs(polarity)
-                
+                return real_sentiment_analyzer.analyze_sentiment(text, 'roberta')
+            except:
                 return type('SentimentResult', (), {
                     'text': text[:200],
-                    'sentiment': sentiment,
-                    'confidence': round(confidence, 3),
-                    'scores': {
-                        'positive': round(pos_score, 3),
-                        'negative': round(neg_score, 3),
-                        'neutral': round(neu_score, 3)
-                    },
-                    'model_used': 'textblob',
+                    'sentiment': 'positive',
+                    'confidence': 0.85,
+                    'scores': {'positive': 0.7, 'negative': 0.1, 'neutral': 0.2},
+                    'model_used': 'mock',
                     'processing_time': 0.1,
                     'language': 'en',
-                    'emotion_scores': {'joy': round(max(0, polarity), 3), 'anger': round(max(0, -polarity), 3)},
+                    'emotion_scores': {'joy': 0.8, 'anger': 0.1},
                     'toxicity_score': 0.1,
                     'bias_score': 0.2,
-                    'metadata': {'textblob': True}
+                    'metadata': {'mock': True}
                 })()
-            except Exception as e:
-                logger.error(f"TextBlob error: {e}")
         
-        # Basic fallback
-        return type('SentimentResult', (), {
-            'text': text[:200],
-            'sentiment': 'neutral',
-            'confidence': 0.5,
-            'scores': {'positive': 0.33, 'negative': 0.33, 'neutral': 0.34},
-            'model_used': 'basic',
-            'processing_time': 0.01,
-            'language': 'en',
-            'emotion_scores': {'neutral': 1.0},
-            'toxicity_score': 0.0,
-            'bias_score': 0.0,
-            'metadata': {'basic': True}
-        })()
+        def get_model_info(self):
+            return {'available_models': ['mock'], 'device': 'cpu'}
     
-    def get_model_info(self):
-        return {'available_models': ['textblob', 'basic'], 'device': 'cpu'}
+    class MockDatabaseManager:
+        def save_sentiment_analysis(self, result, **kwargs):
+            return 1
+        
+        def get_recent_analyses(self, limit=50, offset=0):
+            return []
+        
+        def get_analytics_summary(self, days=7):
+            return {
+                'total_analyses': 0,
+                'sentiment_distribution': {'positive': 0, 'negative': 0, 'neutral': 0},
+                'average_confidence': 0.0,
+                'daily_trends': []
+            }
+        
+        def get_dashboard_summary(self):
+            return {
+                'today': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'mock'},
+                'week': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'mock'}
+            }
+        
+        def init_app(self, app):
+            pass
     
-class MockDatabaseManager:
-    def save_sentiment_analysis(self, result, **kwargs):
-        return 1
+    class MockVideoExtractor:
+        def extract_from_file(self, file_path):
+            return {
+                'title': 'Mock Video',
+                'duration': 120,
+                'width': 1920,
+                'height': 1080,
+                'file_size': 1000000,
+                'transcript': 'This is a mock transcript'
+            }
+        
+        def extract_from_url(self, url):
+            return {
+                'title': 'Mock Video from URL',
+                'duration': 180,
+                'url': url,
+                'view_count': 1000
+            }
     
-    def get_recent_analyses(self, limit=50, offset=0):
-        return []
+    # Use mock components
+    nlp_engine = MockNLPEngine()
+    real_db_manager = MockDatabaseManager()
+    real_video_extractor = MockVideoExtractor()
+    db = SimpleDB()  # Simple database fallback
     
-    def get_analytics_summary(self, days=7):
-        return {
-            'total_analyses': 0,
-            'sentiment_distribution': {'positive': 0, 'negative': 0, 'neutral': 0},
-            'average_confidence': 0.0,
-            'daily_trends': []
-        }
-    
-    def get_dashboard_summary(self):
-        return {
-            'today': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'textblob'},
-            'week': {'total_analyses': 0, 'avg_confidence': 0.0, 'top_model': 'textblob'}
-        }
-    
-    def init_app(self, app):
-        pass
-
-class MockVideoExtractor:
-    def extract_from_file(self, file_path):
-        return {
-            'title': 'Mock Video',
-            'duration': 120,
-            'width': 1920,
-            'height': 1080,
-            'file_size': 1000000,
-            'transcript': 'This is a mock transcript'
-        }
-    
-    def extract_from_url(self, url):
-        return {
-            'title': 'Mock Video from URL',
-            'duration': 180,
-            'url': url,
-            'view_count': 1000
-        }
-
-class BasicNewsAggregator:
-    def get_comprehensive_news(self, limit=20, category=None):
-        return get_sample_news_data(limit)
-
-class BasicSentimentAnalyzer:
-    def analyze_sentiment(self, text, model='textblob'):
-        return MockNLPEngine().analyze_sentiment(text)
-
-# Use mock components
-nlp_engine = MockNLPEngine()
-real_db_manager = MockDatabaseManager()
-real_video_extractor = MockVideoExtractor()
-db = SimpleDB()  # Simple database fallback
-real_news_aggregator = BasicNewsAggregator()
-real_sentiment_analyzer = BasicSentimentAnalyzer()
-logger.info("Using simplified components without complex dependencies")
+    # Try to import real components anyway
+    try:
+        from real_news_aggregator import comprehensive_news_aggregator as real_news_aggregator
+        from real_sentiment_analyzer import real_sentiment_analyzer
+        logger.info("✅ Real API components imported for fallback")
+    except ImportError:
+        # Create basic fallback components
+        class BasicNewsAggregator:
+            def get_comprehensive_news(self, limit=20, category=None):
+                return get_sample_news_data(limit)
+        
+        class BasicSentimentAnalyzer:
+            def analyze_sentiment(self, text, model='roberta'):
+                return MockNLPEngine().analyze_sentiment(text)
+        
+        real_news_aggregator = BasicNewsAggregator()
+        real_sentiment_analyzer = BasicSentimentAnalyzer()
+        logger.info("Using basic fallback components")
 
 # Global fallback function for news data
 def get_sample_news_data(limit=20):
@@ -209,109 +194,62 @@ def get_sample_news_data(limit=20):
     ]
 
 # Real News API Integration Class
-class KenyanNewsAPI:
-    """Kenyan News API integration using free sources"""
+class RealNewsAPI:
+    """Real News API integration using multiple news sources"""
     
     def __init__(self):
+        self.newsapi_key = os.getenv('NEWSAPI_KEY')
+        self.gnews_key = os.getenv('GNEWS_API_KEY')
+        self.currents_key = os.getenv('CURRENTS_API_KEY')
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'SentimentAnalysisDashboard/1.0'})
-        self.timeout = 5  # Reduced timeout to prevent hanging
     
-    def get_kenyan_news(self, limit=20):
-        """Get Kenyan news from free RSS feeds and APIs"""
+    def get_trending_news(self, limit=20, page=1):
+        """Get trending news from multiple sources"""
         all_articles = []
         
-        # Kenyan RSS feeds (completely free)
-        kenyan_feeds = [
-            'https://www.nation.co.ke/kenya/news/rss',
-            'https://www.standardmedia.co.ke/rss/headlines.php',
-            'https://www.the-star.co.ke/news/rss',
-            'https://www.kbc.co.ke/feed/',
-            'https://www.capitalfm.co.ke/news/feed/'
-        ]
+        # Try NewsAPI first
+        if self.newsapi_key:
+            articles = self._fetch_from_newsapi(limit//3, page)
+            all_articles.extend(articles)
         
-        for feed_url in kenyan_feeds:
-            try:
-                articles = self._fetch_from_rss(feed_url, limit//len(kenyan_feeds))
-                all_articles.extend(articles)
-                if len(all_articles) >= limit:
-                    break
-            except Exception as e:
-                logger.warning(f"Failed to fetch from {feed_url}: {e}")
-                continue
+        # Try GNews
+        if self.gnews_key and len(all_articles) < limit:
+            remaining = limit - len(all_articles)
+            articles = self._fetch_from_gnews(remaining, page)
+            all_articles.extend(articles)
         
-        # Add sentiment analysis to articles
-        for article in all_articles[:limit]:
-            try:
-                # Analyze sentiment of title + description
-                text_to_analyze = f"{article.get('title', '')} {article.get('summary', '')}"
-                if text_to_analyze.strip():
-                    result = nlp_engine.analyze_sentiment(text_to_analyze)
-                    article['sentiment'] = result.sentiment
-                    article['confidence'] = result.confidence
-                else:
-                    article['sentiment'] = 'neutral'
-                    article['confidence'] = 0.5
-            except Exception as e:
-                logger.warning(f"Sentiment analysis failed for article: {e}")
-                article['sentiment'] = 'neutral'
-                article['confidence'] = 0.5
+        # Try Currents API
+        if self.currents_key and len(all_articles) < limit:
+            remaining = limit - len(all_articles)
+            articles = self._fetch_from_currents(remaining, page)
+            all_articles.extend(articles)
+        
+        # Add RSS feeds as fallback
+        if len(all_articles) < limit:
+            remaining = limit - len(all_articles)
+            articles = self._fetch_from_rss(remaining)
+            all_articles.extend(articles)
         
         return all_articles[:limit]
     
-    def _fetch_from_rss(self, feed_url, limit=10):
-        """Fetch news from RSS feeds"""
+    def _fetch_from_newsapi(self, limit, page):
+        """Fetch news from NewsAPI"""
         try:
-            feed = feedparser.parse(feed_url)
+            url = "https://newsapi.org/v2/top-headlines"
+            params = {
+                'apiKey': self.newsapi_key,
+                'country': 'us',
+                'pageSize': min(limit, 100),
+                'page': page
+            }
+            
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
             articles = []
-            
-            for entry in feed.entries[:limit]:
-                # Extract publication date
-                pub_date = datetime.now()
-                if hasattr(entry, 'published_parsed') and entry.published_parsed:
-                    try:
-                        pub_date = datetime(*entry.published_parsed[:6])
-                    except:
-                        pass
-                
-                # Clean up description
-                description = getattr(entry, 'description', '') or getattr(entry, 'summary', '')
-                if description:
-                    # Remove HTML tags
-                    import re
-                    description = re.sub('<[^<]+?>', '', description)
-                    description = description.strip()[:300]
-                
-                article = {
-                    'title': getattr(entry, 'title', 'No Title'),
-                    'summary': description,
-                    'url': getattr(entry, 'link', ''),
-                    'source': feed.feed.get('title', 'RSS Feed'),
-                    'timestamp': pub_date.isoformat(),
-                    'image_url': '',
-                    'sentiment': 'neutral',
-                    'confidence': 0.0
-                }
-                
-                # Try to get image
-                if hasattr(entry, 'media_content') and entry.media_content:
-                    article['image_url'] = entry.media_content[0].get('url', '')
-                elif hasattr(entry, 'enclosures') and entry.enclosures:
-                    for enclosure in entry.enclosures:
-                        if enclosure.type.startswith('image/'):
-                            article['image_url'] = enclosure.href
-                            break
-                
-                articles.append(article)
-            
-            return articles
-            
-        except Exception as e:
-            logger.error(f"RSS feed error for {feed_url}: {e}")
-            return []
-
-# Initialize Kenyan News API
-kenyan_news_api = KenyanNewsAPI()
+            for article in data.get('articles', []):
                 if article.get('title') and article.get('description'):
                     articles.append({
                         'title': article['title'],
@@ -442,218 +380,6 @@ kenyan_news_api = KenyanNewsAPI()
 # Initialize real news API
 real_news_api = RealNewsAPI()
 
-# Enhanced Free APIs Integration Classes
-class WeatherAPI:
-    """Free Weather API integration using OpenWeatherMap"""
-    
-    def __init__(self):
-        self.api_key = os.getenv('OPENWEATHER_API_KEY', 'demo_key')
-        self.base_url = "http://api.openweathermap.org/data/2.5"
-        self.session = requests.Session()
-    
-    def get_current_weather(self, city="London"):
-        """Get current weather data"""
-        try:
-            url = f"{self.base_url}/weather"
-            params = {
-                'q': city,
-                'appid': self.api_key,
-                'units': 'metric'
-            }
-            response = self.session.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                # Return mock data if API fails
-                return self._get_mock_weather(city)
-        except Exception as e:
-            logger.error(f"Weather API error: {e}")
-            return self._get_mock_weather(city)
-    
-    def _get_mock_weather(self, city):
-        """Mock weather data for fallback"""
-        return {
-            'name': city,
-            'main': {
-                'temp': 22.5,
-                'feels_like': 24.1,
-                'humidity': 65,
-                'pressure': 1013
-            },
-            'weather': [{
-                'main': 'Clear',
-                'description': 'clear sky',
-                'icon': '01d'
-            }],
-            'wind': {
-                'speed': 3.2,
-                'deg': 180
-            },
-            'visibility': 10000
-        }
-
-class CryptoAPI:
-    """Free Cryptocurrency API using CoinGecko"""
-    
-    def __init__(self):
-        self.base_url = "https://api.coingecko.com/api/v3"
-        self.session = requests.Session()
-    
-    def get_trending_crypto(self, limit=10):
-        """Get trending cryptocurrencies"""
-        try:
-            url = f"{self.base_url}/coins/markets"
-            params = {
-                'vs_currency': 'usd',
-                'order': 'market_cap_desc',
-                'per_page': limit,
-                'page': 1,
-                'sparkline': False
-            }
-            response = self.session.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return self._get_mock_crypto()
-        except Exception as e:
-            logger.error(f"Crypto API error: {e}")
-            return self._get_mock_crypto()
-    
-    def _get_mock_crypto(self):
-        """Mock crypto data for fallback"""
-        return [
-            {
-                'id': 'bitcoin',
-                'name': 'Bitcoin',
-                'symbol': 'BTC',
-                'current_price': 45000,
-                'price_change_percentage_24h': 2.5,
-                'market_cap': 850000000000,
-                'image': 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png'
-            },
-            {
-                'id': 'ethereum',
-                'name': 'Ethereum',
-                'symbol': 'ETH',
-                'current_price': 3200,
-                'price_change_percentage_24h': -1.2,
-                'market_cap': 380000000000,
-                'image': 'https://assets.coingecko.com/coins/images/279/large/ethereum.png'
-            }
-        ]
-
-class QuotesAPI:
-    """Free Inspirational Quotes API"""
-    
-    def __init__(self):
-        self.quotes_url = "https://api.quotable.io/random"
-        self.session = requests.Session()
-    
-    def get_random_quote(self):
-        """Get a random inspirational quote"""
-        try:
-            response = self.session.get(self.quotes_url, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return self._get_mock_quote()
-        except Exception as e:
-            logger.error(f"Quotes API error: {e}")
-            return self._get_mock_quote()
-    
-    def _get_mock_quote(self):
-        """Mock quote for fallback"""
-        quotes = [
-            {
-                'content': 'The only way to do great work is to love what you do.',
-                'author': 'Steve Jobs',
-                'tags': ['motivational', 'work']
-            },
-            {
-                'content': 'Innovation distinguishes between a leader and a follower.',
-                'author': 'Steve Jobs',
-                'tags': ['innovation', 'leadership']
-            },
-            {
-                'content': 'The future belongs to those who believe in the beauty of their dreams.',
-                'author': 'Eleanor Roosevelt',
-                'tags': ['dreams', 'future']
-            }
-        ]
-        return random.choice(quotes)
-
-class JokesAPI:
-    """Free Jokes API for mood enhancement"""
-    
-    def __init__(self):
-        self.jokes_url = "https://official-joke-api.appspot.com/random_joke"
-        self.session = requests.Session()
-    
-    def get_random_joke(self):
-        """Get a random clean joke"""
-        try:
-            response = self.session.get(self.jokes_url, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return self._get_mock_joke()
-        except Exception as e:
-            logger.error(f"Jokes API error: {e}")
-            return self._get_mock_joke()
-    
-    def _get_mock_joke(self):
-        """Mock joke for fallback"""
-        jokes = [
-            {
-                'setup': 'Why do programmers prefer dark mode?',
-                'punchline': 'Because light attracts bugs!',
-                'type': 'programming'
-            },
-            {
-                'setup': 'Why did the AI go to therapy?',
-                'punchline': 'It had too many deep learning issues!',
-                'type': 'technology'
-            }
-        ]
-        return random.choice(jokes)
-
-class FactsAPI:
-    """Free Random Facts API"""
-    
-    def __init__(self):
-        self.facts_url = "https://uselessfacts.jsph.pl/random.json?language=en"
-        self.session = requests.Session()
-    
-    def get_random_fact(self):
-        """Get a random interesting fact"""
-        try:
-            response = self.session.get(self.facts_url, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return self._get_mock_fact()
-        except Exception as e:
-            logger.error(f"Facts API error: {e}")
-            return self._get_mock_fact()
-    
-    def _get_mock_fact(self):
-        """Mock fact for fallback"""
-        facts = [
-            {
-                'text': 'Honey never spoils. Archaeologists have found pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible.',
-                'source': 'Science Facts'
-            },
-            {
-                'text': 'A group of flamingos is called a "flamboyance".',
-                'source': 'Animal Facts'
-            },
-            {
-                'text': 'The human brain contains approximately 86 billion neurons.',
-                'source': 'Human Body Facts'
-            }
-        ]
-        return random.choice(facts)
-
 # X/Twitter API Integration Class
 class TwitterAPI:
     """Basic Twitter API integration for sentiment analysis"""
@@ -709,87 +435,7 @@ class TwitterAPI:
         
         return mock_tweets[:limit]
 
-# Enhanced Stock Market API Class
-class StockAPI:
-    """Free Stock Market API using Alpha Vantage and Finnhub"""
-    
-    def __init__(self):
-        self.alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY', 'demo')
-        self.finnhub_key = os.getenv('FINNHUB_API_KEY', 'demo')
-        self.session = requests.Session()
-    
-    def get_market_overview(self):
-        """Get market overview with major indices"""
-        try:
-            # Try Alpha Vantage first
-            symbols = ['SPY', 'QQQ', 'DIA']  # S&P 500, NASDAQ, Dow Jones ETFs
-            market_data = []
-            
-            for symbol in symbols:
-                try:
-                    url = "https://www.alphavantage.co/query"
-                    params = {
-                        'function': 'GLOBAL_QUOTE',
-                        'symbol': symbol,
-                        'apikey': self.alpha_vantage_key
-                    }
-                    response = self.session.get(url, params=params, timeout=10)
-                    if response.status_code == 200:
-                        data = response.json()
-                        if 'Global Quote' in data:
-                            quote = data['Global Quote']
-                            market_data.append({
-                                'symbol': symbol,
-                                'price': float(quote.get('05. price', 0)),
-                                'change': float(quote.get('09. change', 0)),
-                                'change_percent': quote.get('10. change percent', '0%')
-                            })
-                except Exception as e:
-                    logger.error(f"Error fetching {symbol}: {e}")
-                    continue
-            
-            if market_data:
-                return market_data
-            else:
-                return self._get_mock_stocks()
-                
-        except Exception as e:
-            logger.error(f"Stock API error: {e}")
-            return self._get_mock_stocks()
-    
-    def _get_mock_stocks(self):
-        """Mock stock data for fallback"""
-        return [
-            {
-                'symbol': 'SPY',
-                'name': 'S&P 500 ETF',
-                'price': 445.67,
-                'change': 2.34,
-                'change_percent': '+0.53%'
-            },
-            {
-                'symbol': 'QQQ',
-                'name': 'NASDAQ ETF',
-                'price': 378.92,
-                'change': -1.45,
-                'change_percent': '-0.38%'
-            },
-            {
-                'symbol': 'DIA',
-                'name': 'Dow Jones ETF',
-                'price': 356.78,
-                'change': 0.89,
-                'change_percent': '+0.25%'
-            }
-        ]
-
-# Initialize all API instances
-weather_api = WeatherAPI()
-crypto_api = CryptoAPI()
-quotes_api = QuotesAPI()
-jokes_api = JokesAPI()
-facts_api = FactsAPI()
-stock_api = StockAPI()
+# Initialize Twitter API
 twitter_api = TwitterAPI()
 
 # Configuration
@@ -815,13 +461,6 @@ class Config:
     # AI/ML API Keys
     HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-    
-    # Weather API Key
-    OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
-    
-    # Stock API Keys (free alternatives)
-    ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
-    FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
 
 # Logging configuration - early setup
 logging.basicConfig(
@@ -1793,12 +1432,12 @@ def dashboard():
                 </div>
                 <nav>
                     <ul class="nav-links">
-                        <li><a href="#" onclick="showTab('overview')" class="nav-link active">Overview</a></li>
-                        <li><a href="#" onclick="showTab('sentiment')" class="nav-link">Sentiment</a></li>
-                        <li><a href="#" onclick="showTab('news')" class="nav-link">Kenya News</a></li>
-                        <li><a href="#" onclick="showTab('widgets')" class="nav-link">Widgets</a></li>
-                        <li><a href="#" onclick="showTab('analytics')" class="nav-link">Analytics</a></li>
-                        <li><a href="#" onclick="showTab('media')" class="nav-link">Media</a></li>
+                        <li><a href="#overview">Overview</a></li>
+                        <li><a href="#trends">Trends</a></li>
+                        <li><a href="#segments">Segments</a></li>
+                        <li><a href="#news">News</a></li>
+                        <li><a href="#media">Media</a></li>
+                        <li><a href="#admin">Admin</a></li>
                     </ul>
                 </nav>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
@@ -1895,10 +1534,6 @@ def dashboard():
                     <button class="tab-btn" onclick="switchTab('media', this)">
                         <i class="fas fa-video"></i>
                         Media
-                    </button>
-                    <button class="tab-btn" onclick="switchTab('widgets', this)">
-                        <i class="fas fa-th-large"></i>
-                        Widgets
                     </button>
                     <button class="tab-btn" onclick="switchTab('admin', this)">
                         <i class="fas fa-cog"></i>
@@ -2130,147 +1765,6 @@ def dashboard():
                         </div>
                     </div>
                     
-                    <!-- Enhanced Widgets Tab -->
-                    <div id="widgets" class="tab-pane">
-                        <div class="grid grid-cols-3 gap-6">
-                            <!-- Weather Widget -->
-                            <div class="glass-card">
-                                <h3 class="mb-4">
-                                    <i class="fas fa-cloud-sun text-primary"></i>
-                                    Weather
-                                </h3>
-                                <div id="weather-widget">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <input type="text" id="weather-city" placeholder="Enter city" class="glass-btn" style="flex: 1;">
-                                        <button onclick="loadWeather()" class="glass-btn primary">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    </div>
-                                    <div id="weather-display">
-                                        <!-- Weather data will load here -->
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Crypto Widget -->
-                            <div class="glass-card">
-                                <h3 class="mb-4">
-                                    <i class="fab fa-bitcoin text-warning"></i>
-                                    Cryptocurrency
-                                </h3>
-                                <div id="crypto-widget">
-                                    <button onclick="loadCrypto()" class="glass-btn primary mb-3">
-                                        <i class="fas fa-sync-alt"></i> Refresh Prices
-                                    </button>
-                                    <div id="crypto-display">
-                                        <!-- Crypto data will load here -->
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Stocks Widget -->
-                            <div class="glass-card">
-                                <h3 class="mb-4">
-                                    <i class="fas fa-chart-line text-success"></i>
-                                    Stock Market
-                                </h3>
-                                <div id="stocks-widget">
-                                    <button onclick="loadStocks()" class="glass-btn primary mb-3">
-                                        <i class="fas fa-sync-alt"></i> Refresh Markets
-                                    </button>
-                                    <div id="stocks-display">
-                                        <!-- Stock data will load here -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-3 gap-6 mt-6">
-                            <!-- Quote Widget -->
-                            <div class="glass-card">
-                                <h3 class="mb-4">
-                                    <i class="fas fa-quote-left text-accent"></i>
-                                    Daily Inspiration
-                                </h3>
-                                <div id="quote-widget">
-                                    <button onclick="loadQuote()" class="glass-btn primary mb-3">
-                                        <i class="fas fa-lightbulb"></i> New Quote
-                                    </button>
-                                    <div id="quote-display">
-                                        <!-- Quote will load here -->
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Joke Widget -->
-                            <div class="glass-card">
-                                <h3 class="mb-4">
-                                    <i class="fas fa-laugh text-warning"></i>
-                                    Daily Humor
-                                </h3>
-                                <div id="joke-widget">
-                                    <button onclick="loadJoke()" class="glass-btn primary mb-3">
-                                        <i class="fas fa-smile"></i> Tell Me a Joke
-                                    </button>
-                                    <div id="joke-display">
-                                        <!-- Joke will load here -->
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Fact Widget -->
-                            <div class="glass-card">
-                                <h3 class="mb-4">
-                                    <i class="fas fa-brain text-primary"></i>
-                                    Random Facts
-                                </h3>
-                                <div id="fact-widget">
-                                    <button onclick="loadFact()" class="glass-btn primary mb-3">
-                                        <i class="fas fa-info-circle"></i> Learn Something
-                                    </button>
-                                    <div id="fact-display">
-                                        <!-- Fact will load here -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Real-time Dashboard -->
-                        <div class="glass-card mt-6">
-                            <h3 class="mb-4">
-                                <i class="fas fa-tachometer-alt text-primary"></i>
-                                Real-time Dashboard
-                            </h3>
-                            <div class="grid grid-cols-4 gap-4">
-                                <div class="stat-card">
-                                    <div class="stat-value" id="live-sentiment">0%</div>
-                                    <div class="stat-label">Live Sentiment</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="live-temp">--°C</div>
-                                    <div class="stat-label">Temperature</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="live-btc">$--</div>
-                                    <div class="stat-label">Bitcoin Price</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="live-market">--</div>
-                                    <div class="stat-label">Market Status</div>
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                <button onclick="startRealTimeUpdates()" class="glass-btn primary">
-                                    <i class="fas fa-play"></i> Start Live Updates
-                                </button>
-                                <button onclick="stopRealTimeUpdates()" class="glass-btn">
-                                    <i class="fas fa-stop"></i> Stop Updates
-                                </button>
-                                <span class="text-sm text-secondary ml-4">Updates every 30 seconds</span>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <!-- Admin Tab -->
                     <div id="admin" class="tab-pane">
                         <div class="grid grid-cols-2 gap-6">
@@ -2479,9 +1973,6 @@ def dashboard():
                     break;
                 case 'segments':
                     initializeSegmentsCharts();
-                    break;
-                case 'widgets':
-                    initializeWidgets();
                     break;
             }
         }
@@ -2958,428 +2449,19 @@ def dashboard():
             }
         }
         
-        // Enhanced Widget Functions
-        function initializeWidgets() {
-            // Initialize all widgets when tab is opened
-            loadWeather();
-            loadCrypto();
-            loadStocks();
-            loadQuote();
-            loadJoke();
-            loadFact();
-        }
-        
-        // Weather Widget Functions
-        async function loadWeather() {
-            const city = document.getElementById('weather-city').value || 'London';
-            const display = document.getElementById('weather-display');
-            
-            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading weather...</div>';
-            
-            try {
-                const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    const weather = data.data;
-                    display.innerHTML = `
-                        <div class="weather-info">
-                            <div class="text-center mb-3">
-                                <div class="text-3xl font-bold">${Math.round(weather.main.temp)}°C</div>
-                                <div class="text-secondary">${weather.name}</div>
-                                <div class="text-sm">${weather.weather[0].description}</div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 text-sm">
-                                <div>Feels like: ${Math.round(weather.main.feels_like)}°C</div>
-                                <div>Humidity: ${weather.main.humidity}%</div>
-                                <div>Wind: ${weather.wind.speed} m/s</div>
-                                <div>Pressure: ${weather.main.pressure} hPa</div>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // Update live dashboard
-                    document.getElementById('live-temp').textContent = `${Math.round(weather.main.temp)}°C`;
-                } else {
-                    display.innerHTML = '<div class="text-error">Failed to load weather data</div>';
-                }
-            } catch (error) {
-                display.innerHTML = '<div class="text-error">Weather service unavailable</div>';
-            }
-        }
-        
-        // Crypto Widget Functions
-        async function loadCrypto() {
-            const display = document.getElementById('crypto-display');
-            
-            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading crypto...</div>';
-            
-            try {
-                const response = await fetch('/api/crypto?limit=5');
-                const data = await response.json();
-                
-                if (data.success) {
-                    const cryptos = data.data;
-                    display.innerHTML = cryptos.map(crypto => `
-                        <div class="flex justify-between items-center py-2 border-b border-glass-border">
-                            <div>
-                                <div class="font-medium">${crypto.symbol.toUpperCase()}</div>
-                                <div class="text-sm text-secondary">${crypto.name}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="font-medium">$${crypto.current_price.toLocaleString()}</div>
-                                <div class="text-sm ${crypto.price_change_percentage_24h >= 0 ? 'text-success' : 'text-error'}">
-                                    ${crypto.price_change_percentage_24h >= 0 ? '+' : ''}${crypto.price_change_percentage_24h.toFixed(2)}%
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-                    
-                    // Update live dashboard with Bitcoin price
-                    const bitcoin = cryptos.find(c => c.id === 'bitcoin');
-                    if (bitcoin) {
-                        document.getElementById('live-btc').textContent = `$${bitcoin.current_price.toLocaleString()}`;
-                    }
-                } else {
-                    display.innerHTML = '<div class="text-error">Failed to load crypto data</div>';
-                }
-            } catch (error) {
-                display.innerHTML = '<div class="text-error">Crypto service unavailable</div>';
-            }
-        }
-        
-        // Stock Widget Functions
-        async function loadStocks() {
-            const display = document.getElementById('stocks-display');
-            
-            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading stocks...</div>';
-            
-            try {
-                const response = await fetch('/api/stocks');
-                const data = await response.json();
-                
-                if (data.success) {
-                    const stocks = data.data;
-                    display.innerHTML = stocks.map(stock => `
-                        <div class="flex justify-between items-center py-2 border-b border-glass-border">
-                            <div>
-                                <div class="font-medium">${stock.symbol}</div>
-                                <div class="text-sm text-secondary">${stock.name || 'Market Index'}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="font-medium">$${stock.price.toFixed(2)}</div>
-                                <div class="text-sm ${stock.change >= 0 ? 'text-success' : 'text-error'}">
-                                    ${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)} (${stock.change_percent})
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-                    
-                    // Update live dashboard
-                    const marketStatus = stocks.some(s => s.change > 0) ? 'UP' : 'DOWN';
-                    document.getElementById('live-market').textContent = marketStatus;
-                } else {
-                    display.innerHTML = '<div class="text-error">Failed to load stock data</div>';
-                }
-            } catch (error) {
-                display.innerHTML = '<div class="text-error">Stock service unavailable</div>';
-            }
-        }
-        
-        // Quote Widget Functions
-        async function loadQuote() {
-            const display = document.getElementById('quote-display');
-            
-            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading quote...</div>';
-            
-            try {
-                const response = await fetch('/api/quote');
-                const data = await response.json();
-                
-                if (data.success) {
-                    const quote = data.data;
-                    display.innerHTML = `
-                        <div class="quote-content">
-                            <blockquote class="text-lg italic mb-3">
-                                "${quote.content}"
-                            </blockquote>
-                            <div class="text-right text-secondary">
-                                — ${quote.author}
-                            </div>
-                            ${quote.tags ? `
-                                <div class="mt-2">
-                                    ${quote.tags.map(tag => `<span class="inline-block bg-glass px-2 py-1 rounded text-xs mr-1">${tag}</span>`).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                } else {
-                    display.innerHTML = '<div class="text-error">Failed to load quote</div>';
-                }
-            } catch (error) {
-                display.innerHTML = '<div class="text-error">Quote service unavailable</div>';
-            }
-        }
-        
-        // Joke Widget Functions
-        async function loadJoke() {
-            const display = document.getElementById('joke-display');
-            
-            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading joke...</div>';
-            
-            try {
-                const response = await fetch('/api/joke');
-                const data = await response.json();
-                
-                if (data.success) {
-                    const joke = data.data;
-                    display.innerHTML = `
-                        <div class="joke-content">
-                            <div class="mb-3">
-                                <strong>Q:</strong> ${joke.setup}
-                            </div>
-                            <div class="text-primary font-medium">
-                                <strong>A:</strong> ${joke.punchline}
-                            </div>
-                            ${joke.type ? `
-                                <div class="mt-2">
-                                    <span class="inline-block bg-glass px-2 py-1 rounded text-xs">${joke.type}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                } else {
-                    display.innerHTML = '<div class="text-error">Failed to load joke</div>';
-                }
-            } catch (error) {
-                display.innerHTML = '<div class="text-error">Joke service unavailable</div>';
-            }
-        }
-        
-        // Fact Widget Functions
-        async function loadFact() {
-            const display = document.getElementById('fact-display');
-            
-            display.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading fact...</div>';
-            
-            try {
-                const response = await fetch('/api/fact');
-                const data = await response.json();
-                
-                if (data.success) {
-                    const fact = data.data;
-                    display.innerHTML = `
-                        <div class="fact-content">
-                            <div class="mb-3">
-                                ${fact.text}
-                            </div>
-                            ${fact.source ? `
-                                <div class="text-right text-secondary text-sm">
-                                    Source: ${fact.source}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                } else {
-                    display.innerHTML = '<div class="text-error">Failed to load fact</div>';
-                }
-            } catch (error) {
-                display.innerHTML = '<div class="text-error">Fact service unavailable</div>';
-            }
-        }
-        
-        // Real-time Updates
-        let realTimeInterval;
-        
-        function startRealTimeUpdates() {
-            if (realTimeInterval) {
-                clearInterval(realTimeInterval);
-            }
-            
-            // Update immediately
-            updateLiveData();
-            
-            // Then update every 30 seconds
-            realTimeInterval = setInterval(updateLiveData, 30000);
-            
-            // Update button states
-            document.querySelector('button[onclick="startRealTimeUpdates()"]').disabled = true;
-            document.querySelector('button[onclick="stopRealTimeUpdates()"]').disabled = false;
-        }
-        
-        function stopRealTimeUpdates() {
-            if (realTimeInterval) {
-                clearInterval(realTimeInterval);
-                realTimeInterval = null;
-            }
-            
-            // Update button states
-            document.querySelector('button[onclick="startRealTimeUpdates()"]').disabled = false;
-            document.querySelector('button[onclick="stopRealTimeUpdates()"]').disabled = true;
-        }
-        
-        async function updateLiveData() {
-            try {
-                // Update sentiment from recent analyses
-                const analyticsResponse = await fetch('/api/analytics/summary');
-                if (analyticsResponse.ok) {
-                    const analytics = await analyticsResponse.json();
-                    const positivePct = Math.round(analytics.sentiment_distribution.positive);
-                    document.getElementById('live-sentiment').textContent = `${positivePct}%`;
-                }
-                
-                // Update other live data (weather, crypto, stocks are updated by their respective functions)
-                // This could be enhanced to fetch only the specific data needed for live updates
-                
-            } catch (error) {
-                console.error('Live update error:', error);
-            }
-        }
-        
-        // Navigation Functions
-        function showTab(tabName) {
-            // Hide all tab panes
-            const allPanes = document.querySelectorAll('.tab-pane');
-            allPanes.forEach(pane => {
-                pane.classList.remove('active');
-                pane.style.display = 'none';
-            });
-            
-            // Remove active class from all nav links
-            const allNavLinks = document.querySelectorAll('.nav-link');
-            allNavLinks.forEach(link => link.classList.remove('active'));
-            
-            // Show selected tab
-            const selectedPane = document.getElementById(tabName);
-            if (selectedPane) {
-                selectedPane.classList.add('active');
-                selectedPane.style.display = 'block';
-            }
-            
-            // Add active class to clicked nav link
-            const activeLink = document.querySelector(`[onclick="showTab('${tabName}')"]`);
-            if (activeLink) {
-                activeLink.classList.add('active');
-            }
-            
-            // Load tab-specific content
-            switch(tabName) {
-                case 'sentiment':
-                    // Focus on sentiment input
-                    const sentimentInput = document.getElementById('sentiment-input');
-                    if (sentimentInput) sentimentInput.focus();
-                    break;
-                case 'news':
-                    loadNews(1);
-                    break;
-                case 'widgets':
-                    loadWeather();
-                    loadCrypto();
-                    loadStocks();
-                    loadQuote();
-                    loadJoke();
-                    loadFact();
-                    break;
-                case 'analytics':
-                    updateLiveData();
-                    break;
-                case 'overview':
-                    initializeOverviewCharts();
-                    break;
-            }
-        }
-        
-        // Enhanced sentiment analysis function
-        async function analyzeSentiment() {
-            const input = document.getElementById('sentiment-input');
-            const result = document.getElementById('sentiment-result');
-            const text = input.value.trim();
-            
-            if (!text) {
-                result.innerHTML = '<div class="text-error">Please enter some text to analyze</div>';
-                return;
-            }
-            
-            result.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Analyzing...</div>';
-            
-            try {
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ text: text })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    const sentimentColor = data.sentiment === 'positive' ? 'success' : 
-                                         data.sentiment === 'negative' ? 'error' : 'warning';
-                    
-                    result.innerHTML = `
-                        <div class="sentiment-result-card">
-                            <div class="sentiment-header">
-                                <span class="sentiment-label text-${sentimentColor}">
-                                    ${data.sentiment.toUpperCase()}
-                                </span>
-                                <span class="confidence-score">
-                                    ${(data.confidence * 100).toFixed(1)}%
-                                </span>
-                            </div>
-                            <div class="sentiment-scores">
-                                <div class="score-bar">
-                                    <span>Positive</span>
-                                    <div class="bar">
-                                        <div class="fill success" style="width: ${data.scores.positive * 100}%"></div>
-                                    </div>
-                                    <span>${(data.scores.positive * 100).toFixed(1)}%</span>
-                                </div>
-                                <div class="score-bar">
-                                    <span>Negative</span>
-                                    <div class="bar">
-                                        <div class="fill error" style="width: ${data.scores.negative * 100}%"></div>
-                                    </div>
-                                    <span>${(data.scores.negative * 100).toFixed(1)}%</span>
-                                </div>
-                                <div class="score-bar">
-                                    <span>Neutral</span>
-                                    <div class="bar">
-                                        <div class="fill warning" style="width: ${data.scores.neutral * 100}%"></div>
-                                    </div>
-                                    <span>${(data.scores.neutral * 100).toFixed(1)}%</span>
-                                </div>
-                            </div>
-                            <div class="analysis-meta">
-                                <small>Model: ${data.model_used} | Time: ${data.processing_time}s</small>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    result.innerHTML = `<div class="text-error">Error: ${data.error}</div>`;
-                }
-            } catch (error) {
-                result.innerHTML = `<div class="text-error">Analysis failed: ${error.message}</div>`;
-            }
-        }
-
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize theme first
             initializeTheme();
             
-            // Show overview tab by default
-            showTab('overview');
+            // Initialize overview charts by default
+            initializeOverviewCharts();
             
-            // Load initial widget data with delay
-            setTimeout(() => {
-                loadWeather();
-                loadCrypto();
-                loadStocks();
-                loadQuote();
-                loadJoke();
-                loadFact();
-            }, 1000); // Delay to prevent overwhelming APIs on page load
+            // Load news data for the news tab
+            loadNews(1);
+            
+            // Load social media data for the social tab
+            loadTweets();
             
             // Add keyboard shortcuts
             document.addEventListener('keydown', function(e) {
@@ -3420,12 +2502,13 @@ def dashboard():
 
 @app.route('/api/news')
 def get_news():
-    """Get paginated Kenyan news with sentiment analysis"""
+    """Get paginated news with sentiment analysis from enhanced Kenyan sources"""
     try:
-        limit = int(request.args.get('limit', 20))
-        # Use our Kenyan news API
-        articles = kenyan_news_api.get_kenyan_news(limit)
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
         
+        # Use enhanced Kenyan news ingestor first
+        articles = []
         try:
             if REAL_COMPONENTS_AVAILABLE and 'kenyan_news_ingestor' in globals():
                 # Get articles from Kenyan sources
@@ -3944,99 +3027,6 @@ def get_tweets():
         logger.error(f"Twitter API error: {e}")
         return jsonify({'error': 'Failed to fetch tweets'}), 500
 
-# Enhanced API Routes for New Services
-@app.route('/api/weather')
-def get_weather():
-    """Get current weather data"""
-    try:
-        city = request.args.get('city', 'London')
-        weather_data = weather_api.get_current_weather(city)
-        
-        return jsonify({
-            'success': True,
-            'data': weather_data,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Weather API error: {e}")
-        return jsonify({'error': 'Failed to fetch weather data'}), 500
-
-@app.route('/api/crypto')
-def get_crypto():
-    """Get cryptocurrency data"""
-    try:
-        limit = int(request.args.get('limit', 10))
-        crypto_data = crypto_api.get_trending_crypto(limit)
-        
-        return jsonify({
-            'success': True,
-            'data': crypto_data,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Crypto API error: {e}")
-        return jsonify({'error': 'Failed to fetch crypto data'}), 500
-
-@app.route('/api/stocks')
-def get_stocks():
-    """Get stock market data"""
-    try:
-        stock_data = stock_api.get_market_overview()
-        
-        return jsonify({
-            'success': True,
-            'data': stock_data,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Stock API error: {e}")
-        return jsonify({'error': 'Failed to fetch stock data'}), 500
-
-@app.route('/api/quote')
-def get_quote():
-    """Get inspirational quote"""
-    try:
-        quote_data = quotes_api.get_random_quote()
-        
-        return jsonify({
-            'success': True,
-            'data': quote_data,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Quote API error: {e}")
-        return jsonify({'error': 'Failed to fetch quote'}), 500
-
-@app.route('/api/joke')
-def get_joke():
-    """Get random joke"""
-    try:
-        joke_data = jokes_api.get_random_joke()
-        
-        return jsonify({
-            'success': True,
-            'data': joke_data,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Joke API error: {e}")
-        return jsonify({'error': 'Failed to fetch joke'}), 500
-
-@app.route('/api/fact')
-def get_fact():
-    """Get random fact"""
-    try:
-        fact_data = facts_api.get_random_fact()
-        
-        return jsonify({
-            'success': True,
-            'data': fact_data,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Fact API error: {e}")
-        return jsonify({'error': 'Failed to fetch fact'}), 500
-
 @app.route('/api/analytics/summary')
 def get_analytics_summary():
     """Get comprehensive analytics summary"""
@@ -4076,186 +3066,6 @@ def get_analytics_summary():
     except Exception as e:
         logger.error(f"Analytics summary error: {e}")
         return jsonify({'error': 'Failed to generate analytics summary'}), 500
-
-@app.route('/api/batch-analyze', methods=['POST'])
-def batch_analyze_route():
-    """Analyze multiple texts at once"""
-    try:
-        data = request.get_json()
-        texts = data.get('texts', [])
-        
-        if not texts or not isinstance(texts, list):
-            return jsonify({'error': 'Texts array is required'}), 400
-        
-        if len(texts) > 50:
-            return jsonify({'error': 'Maximum 50 texts allowed per batch'}), 400
-        
-        results = []
-        for i, text in enumerate(texts):
-            if not text or len(text.strip()) == 0:
-                continue
-                
-            if len(text) > 1000:  # Shorter limit for batch
-                text = text[:1000] + "..."
-            
-            # Analyze sentiment
-            result = nlp_engine.analyze_sentiment(text)
-            
-            results.append({
-                'index': i,
-                'text': text[:200] + "..." if len(text) > 200 else text,
-                'sentiment': result.sentiment,
-                'confidence': round(result.confidence, 3),
-                'scores': result.scores
-            })
-        
-        return jsonify({
-            'success': True,
-            'total_analyzed': len(results),
-            'results': results,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Batch analysis error: {e}")
-        return jsonify({'error': 'Batch analysis failed'}), 500
-
-@app.route('/api/export/<format>')
-def export_data(format):
-    """Export analysis results in CSV or JSON format"""
-    try:
-        # Get recent analyses (mock data for now)
-        sample_data = [
-            {
-                'timestamp': datetime.now().isoformat(),
-                'text': 'Sample positive text',
-                'sentiment': 'positive',
-                'confidence': 0.85,
-                'positive_score': 0.8,
-                'negative_score': 0.1,
-                'neutral_score': 0.1
-            },
-            {
-                'timestamp': (datetime.now() - timedelta(minutes=5)).isoformat(),
-                'text': 'Sample negative text',
-                'sentiment': 'negative',
-                'confidence': 0.75,
-                'positive_score': 0.1,
-                'negative_score': 0.8,
-                'neutral_score': 0.1
-            }
-        ]
-        
-        if format.lower() == 'csv':
-            import io
-            import csv
-            
-            output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=['timestamp', 'text', 'sentiment', 'confidence', 'positive_score', 'negative_score', 'neutral_score'])
-            writer.writeheader()
-            writer.writerows(sample_data)
-            
-            response = app.response_class(
-                output.getvalue(),
-                mimetype='text/csv',
-                headers={'Content-Disposition': 'attachment; filename=sentiment_analysis.csv'}
-            )
-            return response
-            
-        elif format.lower() == 'json':
-            response = app.response_class(
-                json.dumps(sample_data, indent=2),
-                mimetype='application/json',
-                headers={'Content-Disposition': 'attachment; filename=sentiment_analysis.json'}
-            )
-            return response
-        else:
-            return jsonify({'error': 'Unsupported format. Use csv or json'}), 400
-            
-    except Exception as e:
-        logger.error(f"Export error: {e}")
-        return jsonify({'error': 'Export failed'}), 500
-
-@app.route('/api/text-stats', methods=['POST'])
-def text_stats_route():
-    """Get detailed text statistics and readability metrics"""
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        
-        if not text:
-            return jsonify({'error': 'Text is required'}), 400
-        
-        # Basic statistics
-        words = text.split()
-        sentences = text.split('.')
-        paragraphs = text.split('\n\n')
-        
-        # Character analysis
-        chars_total = len(text)
-        chars_no_spaces = len(text.replace(' ', ''))
-        
-        # Word analysis
-        word_lengths = [len(word.strip('.,!?;:"()[]{}')) for word in words if word.strip()]
-        avg_word_length = sum(word_lengths) / len(word_lengths) if word_lengths else 0
-        
-        # Sentence analysis
-        sentence_lengths = [len(sentence.split()) for sentence in sentences if sentence.strip()]
-        avg_sentence_length = sum(sentence_lengths) / len(sentence_lengths) if sentence_lengths else 0
-        
-        # Simple readability score (Flesch-like approximation)
-        if sentence_lengths and word_lengths:
-            readability_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * (avg_word_length / len(words)))
-            readability_score = max(0, min(100, readability_score))  # Clamp between 0-100
-        else:
-            readability_score = 50
-        
-        # Readability level
-        if readability_score >= 90:
-            readability_level = "Very Easy"
-        elif readability_score >= 80:
-            readability_level = "Easy"
-        elif readability_score >= 70:
-            readability_level = "Fairly Easy"
-        elif readability_score >= 60:
-            readability_level = "Standard"
-        elif readability_score >= 50:
-            readability_level = "Fairly Difficult"
-        elif readability_score >= 30:
-            readability_level = "Difficult"
-        else:
-            readability_level = "Very Difficult"
-        
-        return jsonify({
-            'success': True,
-            'statistics': {
-                'characters': {
-                    'total': chars_total,
-                    'without_spaces': chars_no_spaces,
-                    'spaces': chars_total - chars_no_spaces
-                },
-                'words': {
-                    'total': len(words),
-                    'unique': len(set(word.lower().strip('.,!?;:"()[]{}') for word in words)),
-                    'average_length': round(avg_word_length, 2)
-                },
-                'sentences': {
-                    'total': len([s for s in sentences if s.strip()]),
-                    'average_length': round(avg_sentence_length, 2)
-                },
-                'paragraphs': len([p for p in paragraphs if p.strip()]),
-                'readability': {
-                    'score': round(readability_score, 1),
-                    'level': readability_level,
-                    'description': f"Text is {readability_level.lower()} to read"
-                }
-            },
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Text stats error: {e}")
-        return jsonify({'error': 'Failed to calculate text statistics'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))
