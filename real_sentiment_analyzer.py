@@ -103,11 +103,6 @@ class EnhancedSentimentAnalyzer:
         self.cache_size = cache_size
         self.rate_limit_delay = 0.1  # Minimum delay between requests
         
-        # Initialize components with error handling
-        self._initialize_analyzers()
-        self._setup_session()
-        self._setup_caching()
-        
         # Threading for concurrent processing
         self.thread_lock = threading.Lock()
         self.executor = ThreadPoolExecutor(max_workers=3)
@@ -116,6 +111,11 @@ class EnhancedSentimentAnalyzer:
         self.last_request_time = 0
         self.request_count = 0
         self.start_time = time.time()
+
+        # Initialize components with error handling
+        self._initialize_analyzers()
+        self._setup_session()
+        self._setup_caching()
         
         logger.info("✅ Enhanced Sentiment Analyzer initialized successfully")
     
@@ -293,14 +293,6 @@ class EnhancedSentimentAnalyzer:
     def analyze_sentiment(self, text: str, method: str = 'auto') -> SentimentResult:
         """
         Enhanced sentiment analysis with comprehensive error handling and fallbacks
-        
-        Args:
-            text: Text to analyze (1-5000 characters)
-            method: Analysis method ('auto', 'huggingface_api', 'huggingface_local', 'vader', 'textblob', 'ensemble')
-        
-        Returns:
-            SentimentResult object with comprehensive analysis results
-        """
         
         Args:
             text: Text to analyze (1-5000 characters)
@@ -716,24 +708,12 @@ class EnhancedSentimentAnalyzer:
         
         toxicity_ratio = toxic_count / word_count
         return min(1.0, toxicity_ratio * 5)  # Scale and cap at 1.0
-                        scores={k: round(v, 3) for k, v in sentiment_scores.items()},
-                        model_used='huggingface-roberta',
-                        processing_time=0.1,
-                        emotion_scores=self._extract_emotions(text),
-                        toxicity_score=self._estimate_toxicity(text),
-                        method='huggingface_api'
-                    )
-            
-            else:
-                logger.warning(f"Hugging Face API error: {response.status_code} - {response.text}")
-                return self._analyze_with_vader(text)
-                
-        except Exception as e:
-            logger.error(f"Hugging Face API error: {e}")
-            return self._analyze_with_vader(text)
     
-    def _analyze_with_vader(self, text: str) -> SentimentResult:
+    def _analyze_with_vader(self, text: str, start_time: float = None) -> SentimentResult:
         """Analyze using VADER sentiment analyzer"""
+        if start_time is None:
+            start_time = time.time()
+            
         try:
             scores = self.vader_analyzer.polarity_scores(text)
             
@@ -748,6 +728,8 @@ class EnhancedSentimentAnalyzer:
                 sentiment = 'neutral'
                 confidence = 1 - abs(scores['compound'])
             
+            processing_time = time.time() - start_time
+            
             return SentimentResult(
                 text=text[:200],
                 sentiment=sentiment,
@@ -758,7 +740,7 @@ class EnhancedSentimentAnalyzer:
                     'neutral': round(scores['neu'], 3)
                 },
                 model_used='vader',
-                processing_time=0.01,
+                processing_time=round(processing_time, 3),
                 emotion_scores=self._extract_emotions(text),
                 toxicity_score=self._estimate_toxicity(text),
                 method='vader'
@@ -952,4 +934,4 @@ class EnhancedSentimentAnalyzer:
         )
 
 # Create global instance
-real_sentiment_analyzer = RealSentimentAnalyzer()
+real_sentiment_analyzer = EnhancedSentimentAnalyzer()

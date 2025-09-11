@@ -12,7 +12,7 @@ python-dotenv==1.0.0
 vaderSentiment==3.3.2
 textblob==0.17.1
 transformers==4.35.0
-torch==2.1.0
+torch>=2.0.0
 numpy==1.24.3
 scikit-learn==1.5.0
 
@@ -28,6 +28,11 @@ pandas==1.5.3
 emoji==2.8.0
 langdetect==1.0.9
 spacy==3.6.1
+
+# NEW: Advanced Analysis and Visualization
+matplotlib==3.7.2
+seaborn==0.12.2
+textstat==0.7.3
 
 # Web Framework Options
 fastapi==0.103.1
