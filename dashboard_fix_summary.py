@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Dashboard Fix Summary
-Fixed the Flask route conflict and verified functionality
+Fixed thee Flask route conflict and verified functionality
 """
 
 import requests
