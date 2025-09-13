@@ -45,6 +45,13 @@ try:
     from next_gen_news_aggregator import next_gen_news
     from mega_free_apis import mega_api_collection
     from advanced_ml_models import advanced_ml_models
+    # Advanced analytics engine (trends, anomalies, predictions, intelligent reports)
+    try:
+        from advanced_analytics_engine import AdvancedAnalyticsEngine, generate_analytics_ui
+        ADVANCED_ANALYTICS_AVAILABLE = True
+    except Exception as _adv_err:
+        print(f"Warning: Could not import Advanced Analytics Engine: {_adv_err}")
+        ADVANCED_ANALYTICS_AVAILABLE = False
     from advanced_visualizer import advanced_visualizer
     
     # Initialize enhanced components
@@ -55,6 +62,14 @@ try:
     REAL_COMPONENTS_AVAILABLE = True
     IMMERSIVE_APIS_AVAILABLE = True
     logger.info("✅ Enhanced production components + Immersive APIs loaded successfully")
+
+    # Try to import Habit Engine
+    try:
+        from habit_engine import HabitEngine, generate_habits_ui
+        HABITS_AVAILABLE = True
+    except Exception as _habi_err:
+        print(f"Warning: Could not import Habit Engine: {_habi_err}")
+        HABITS_AVAILABLE = False
     
     # Legacy compatibility - alias the enhanced analyzer
     real_sentiment_analyzer = enhanced_sentiment_analyzer
@@ -85,6 +100,12 @@ except ImportError as e:
             print(f"Warning: Could not import any real components: {e3}")
             REAL_COMPONENTS_AVAILABLE = False
             IMMERSIVE_APIS_AVAILABLE = False
+            # Advanced analytics may still be available even if enhanced components aren't
+            try:
+                from advanced_analytics_engine import AdvancedAnalyticsEngine, generate_analytics_ui
+                ADVANCED_ANALYTICS_AVAILABLE = True
+            except Exception:
+                ADVANCED_ANALYTICS_AVAILABLE = False
 
 # Simple fallback database class
 class SimpleDB:
@@ -389,6 +410,26 @@ class RealNewsAPI:
 
 # Initialize real news API
 real_news_api = RealNewsAPI()
+
+# Initialize Advanced Analytics Engine if available
+advanced_analytics_engine = None
+if 'ADVANCED_ANALYTICS_AVAILABLE' in globals() and ADVANCED_ANALYTICS_AVAILABLE:
+    try:
+        advanced_analytics_engine = AdvancedAnalyticsEngine()
+        logger.info("✅ Advanced Analytics Engine initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize Advanced Analytics Engine: {e}")
+        advanced_analytics_engine = None
+
+# Initialize Habit Engine if available
+habit_engine = None
+if 'HABITS_AVAILABLE' in globals() and HABITS_AVAILABLE:
+    try:
+        habit_engine = HabitEngine()
+        logger.info("✅ Habit Formation Engine initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize Habit Engine: {e}")
+        habit_engine = None
 
 # X/Twitter API Integration Class
 class TwitterAPI:
@@ -3905,9 +3946,24 @@ def dashboard():
             document.body.removeChild(link);
         }
     </script>
+    <!-- Advanced Analytics overlay injected below -->
 </body>
 </html>
     """
+
+    # If available, inject the Advanced Analytics UI overlay before </body>
+    if advanced_analytics_engine is not None and 'generate_analytics_ui' in globals():
+        try:
+            html_template = html_template.replace("</body>", generate_analytics_ui() + "\n</body>")
+        except Exception as e:
+            logger.warning(f"Failed to inject advanced analytics UI: {e}")
+
+    # Inject Habit Formation UI overlay as well
+    if habit_engine is not None and 'generate_habits_ui' in globals():
+        try:
+            html_template = html_template.replace("</body>", generate_habits_ui() + "\n</body>")
+        except Exception as e:
+            logger.warning(f"Failed to inject habits UI: {e}")
     
     # Define missing variables for template
     status = "active"
@@ -3920,6 +3976,165 @@ def dashboard():
     }
     
     return render_template_string(html_template, status=status, message=message, chart_data=chart_data, **template_data)
+
+# ===== Habit Formation Engine API Endpoints =====
+
+def _habits_cache_key():
+    return 'habit_engine_state_v1'
+
+@app.route('/api/habits/list')
+def api_habits_list():
+    try:
+        if habit_engine is None:
+            return jsonify({'error': 'Habit Engine not available'}), 503
+        # Use analytics_cache for lightweight persistence
+        state = real_db_manager.get_cached_data(_habits_cache_key()) if hasattr(real_db_manager, 'get_cached_data') else None
+        state = habit_engine.ensure_state(state)
+        state = habit_engine.reset_daily_if_needed(state)
+        # Persist back
+        if hasattr(real_db_manager, 'set_cached_data'):
+            real_db_manager.set_cached_data(_habits_cache_key(), state, ttl_minutes=24*60)
+        return jsonify(habit_engine.get_summary(state))
+    except Exception as e:
+        logger.error(f"Habits list error: {e}")
+        return jsonify({'error': 'Failed to load habits'}), 500
+
+@app.route('/api/habits/complete', methods=['POST'])
+def api_habits_complete():
+    try:
+        if habit_engine is None:
+            return jsonify({'error': 'Habit Engine not available'}), 503
+        data = request.get_json() or {}
+        goal_id = data.get('goal_id')
+        if not goal_id:
+            return jsonify({'error': 'Missing goal_id'}), 400
+        state = real_db_manager.get_cached_data(_habits_cache_key()) if hasattr(real_db_manager, 'get_cached_data') else None
+        state = habit_engine.ensure_state(state)
+        state = habit_engine.complete_goal_today(state, goal_id)
+        # Persist
+        if hasattr(real_db_manager, 'set_cached_data'):
+            real_db_manager.set_cached_data(_habits_cache_key(), state, ttl_minutes=24*60)
+        return jsonify(habit_engine.get_summary(state))
+    except Exception as e:
+        logger.error(f"Habits complete error: {e}")
+        return jsonify({'error': 'Failed to complete habit'}), 500
+
+# ===== Advanced Analytics Engine API Endpoints =====
+
+@app.route('/api/analytics/advanced/trends')
+def api_advanced_trends():
+    """Return sentiment trend analysis using Advanced Analytics Engine"""
+    try:
+        if advanced_analytics_engine is None:
+            return jsonify({'error': 'Advanced Analytics Engine not available'}), 503
+
+        # Build analysis history from recent analyses
+        recent = real_db_manager.get_recent_analyses(limit=500, offset=0) if hasattr(real_db_manager, 'get_recent_analyses') else []
+        analysis_history = []
+        for r in recent:
+            # Normalize timestamp to ISO 8601 string
+            ts = r.get('timestamp')
+            try:
+                # Attempt to parse if not already ISO string
+                if isinstance(ts, datetime):
+                    ts_iso = ts.isoformat()
+                else:
+                    ts_iso = str(ts)
+            except Exception:
+                ts_iso = datetime.now().isoformat()
+            analysis_history.append({
+                'timestamp': ts_iso,
+                'sentiment': r.get('sentiment', 'neutral'),
+                'confidence': r.get('confidence', 0.0)
+            })
+
+        result = advanced_analytics_engine.analyze_sentiment_trends(analysis_history)
+        return jsonify({'success': True, 'data': result, 'count': len(analysis_history), 'timestamp': datetime.now().isoformat()})
+    except Exception as e:
+        logger.error(f"Advanced trends error: {e}")
+        return jsonify({'error': 'Failed to analyze trends'}), 500
+
+
+@app.route('/api/analytics/advanced/user')
+def api_advanced_user_behavior():
+    """Return user behavior analysis (heuristic) using Advanced Analytics Engine"""
+    try:
+        if advanced_analytics_engine is None:
+            return jsonify({'error': 'Advanced Analytics Engine not available'}), 503
+
+        # Derive a simple user activity stream from recent analyses
+        recent = real_db_manager.get_recent_analyses(limit=500, offset=0) if hasattr(real_db_manager, 'get_recent_analyses') else []
+        user_activity = []
+        for r in recent:
+            ts = r.get('timestamp')
+            try:
+                ts_dt = ts if isinstance(ts, datetime) else datetime.fromisoformat(str(ts)) if isinstance(ts, str) and len(ts) >= 10 else datetime.now()
+            except Exception:
+                ts_dt = datetime.now()
+            user_activity.append({
+                'timestamp': ts_dt,
+                'feature': r.get('feature', 'sentiment_analysis'),
+                'action': 'analyze',
+                'metadata': {
+                    'model': r.get('model_used', 'unknown'),
+                    'confidence': r.get('confidence', 0.0)
+                }
+            })
+
+        result = advanced_analytics_engine.analyze_user_behavior(user_activity)
+        return jsonify({'success': True, 'data': result, 'count': len(user_activity), 'timestamp': datetime.now().isoformat()})
+    except Exception as e:
+        logger.error(f"Advanced user behavior error: {e}")
+        return jsonify({'error': 'Failed to analyze user behavior'}), 500
+
+
+@app.route('/api/analytics/advanced/report')
+def api_advanced_report():
+    """Generate intelligent report combining trends and user behavior"""
+    try:
+        if advanced_analytics_engine is None:
+            return jsonify({'error': 'Advanced Analytics Engine not available'}), 503
+
+        # Fetch both data sources
+        # Trends
+        recent = real_db_manager.get_recent_analyses(limit=500, offset=0) if hasattr(real_db_manager, 'get_recent_analyses') else []
+        analysis_history = []
+        for r in recent:
+            ts = r.get('timestamp')
+            try:
+                ts_iso = ts.isoformat() if isinstance(ts, datetime) else str(ts)
+            except Exception:
+                ts_iso = datetime.now().isoformat()
+            analysis_history.append({
+                'timestamp': ts_iso,
+                'sentiment': r.get('sentiment', 'neutral'),
+                'confidence': r.get('confidence', 0.0)
+            })
+        sentiment_trends = advanced_analytics_engine.analyze_sentiment_trends(analysis_history)
+
+        # User behavior
+        user_activity = []
+        for r in recent:
+            ts = r.get('timestamp')
+            try:
+                ts_dt = ts if isinstance(ts, datetime) else datetime.fromisoformat(str(ts)) if isinstance(ts, str) else datetime.now()
+            except Exception:
+                ts_dt = datetime.now()
+            user_activity.append({
+                'timestamp': ts_dt,
+                'feature': r.get('feature', 'sentiment_analysis'),
+                'action': 'analyze'
+            })
+        user_behavior = advanced_analytics_engine.analyze_user_behavior(user_activity)
+
+        report = advanced_analytics_engine.create_intelligent_report(
+            analysis_data=sentiment_trends,
+            user_data=user_behavior
+        )
+        return jsonify({'success': True, 'report': report, 'timestamp': datetime.now().isoformat()})
+    except Exception as e:
+        logger.error(f"Advanced report error: {e}")
+        return jsonify({'error': 'Failed to generate intelligent report'}), 500
 
 @app.route('/api/news')
 def get_news():
