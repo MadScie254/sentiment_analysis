@@ -63,6 +63,48 @@ class EnhancedDatabaseManager:
                     )
                 """)
                 
+                # Habits tracking table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS habits (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        goal_id TEXT NOT NULL UNIQUE,
+                        title TEXT NOT NULL,
+                        description TEXT,
+                        target INTEGER DEFAULT 1,
+                        icon TEXT DEFAULT 'fa-check',
+                        category TEXT DEFAULT 'general',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        active BOOLEAN DEFAULT 1
+                    )
+                """)
+                
+                # Habit completions table for detailed tracking
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS habit_completions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        goal_id TEXT NOT NULL,
+                        completed_date DATE NOT NULL,
+                        progress INTEGER DEFAULT 1,
+                        notes TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(goal_id, completed_date)
+                    )
+                """)
+                
+                # Habit streaks table for performance tracking
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS habit_streaks (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        goal_id TEXT NOT NULL UNIQUE,
+                        current_streak INTEGER DEFAULT 0,
+                        longest_streak INTEGER DEFAULT 0,
+                        last_completed DATE,
+                        streak_start_date DATE,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                
                 conn.commit()
                 logger.info("✅ Database initialized successfully")
                 
@@ -321,6 +363,265 @@ class EnhancedDatabaseManager:
                 
         except Exception as e:
             logger.error(f"Failed to set cached data: {e}")
+    
+    def create_habit(self, goal_id: str, title: str, description: str = "", target: int = 1, 
+                    icon: str = "fa-check", category: str = "general") -> Optional[int]:
+        """Create a new habit"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    INSERT INTO habits (goal_id, title, description, target, icon, category)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (goal_id, title, description, target, icon, category))
+                
+                # Initialize streak record
+                cursor.execute("""
+                    INSERT INTO habit_streaks (goal_id, current_streak, longest_streak)
+                    VALUES (?, 0, 0)
+                """, (goal_id,))
+                
+                conn.commit()
+                return cursor.lastrowid
+                
+        except Exception as e:
+            logger.error(f"Failed to create habit: {e}")
+            return None
+    
+    def get_habits(self, active_only: bool = True) -> List[Dict]:
+        """Get all habits"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                query = """
+                    SELECT h.goal_id, h.title, h.description, h.target, h.icon, h.category,
+                           s.current_streak, s.longest_streak, s.last_completed
+                    FROM habits h
+                    LEFT JOIN habit_streaks s ON h.goal_id = s.goal_id
+                    WHERE h.active = ?
+                    ORDER BY h.created_at
+                """
+                
+                cursor.execute(query, (1 if active_only else 0,))
+                rows = cursor.fetchall()
+                
+                habits = []
+                for row in rows:
+                    habits.append({
+                        'goal_id': row[0],
+                        'title': row[1],
+                        'description': row[2],
+                        'target': row[3],
+                        'icon': row[4],
+                        'category': row[5],
+                        'current_streak': row[6] or 0,
+                        'longest_streak': row[7] or 0,
+                        'last_completed': row[8]
+                    })
+                
+                return habits
+                
+        except Exception as e:
+            logger.error(f"Failed to get habits: {e}")
+            return []
+    
+    def complete_habit(self, goal_id: str, date: str = None, progress: int = 1, notes: str = "") -> bool:
+        """Mark a habit as completed for a given date"""
+        if date is None:
+            date = datetime.now().strftime('%Y-%m-%d')
+            
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # Insert completion record
+                cursor.execute("""
+                    INSERT OR REPLACE INTO habit_completions 
+                    (goal_id, completed_date, progress, notes)
+                    VALUES (?, ?, ?, ?)
+                """, (goal_id, date, progress, notes))
+                
+                # Update streak information
+                self._update_habit_streak(cursor, goal_id, date)
+                
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to complete habit: {e}")
+            return False
+    
+    def _update_habit_streak(self, cursor, goal_id: str, completion_date: str):
+        """Update habit streak information"""
+        try:
+            # Get current streak info
+            cursor.execute("""
+                SELECT current_streak, longest_streak, last_completed
+                FROM habit_streaks
+                WHERE goal_id = ?
+            """, (goal_id,))
+            
+            result = cursor.fetchone()
+            if not result:
+                current_streak, longest_streak, last_completed = 0, 0, None
+            else:
+                current_streak, longest_streak, last_completed = result
+            
+            # Calculate new streak
+            completion_date_obj = datetime.strptime(completion_date, '%Y-%m-%d').date()
+            
+            if last_completed:
+                last_completed_obj = datetime.strptime(last_completed, '%Y-%m-%d').date()
+                days_diff = (completion_date_obj - last_completed_obj).days
+                
+                if days_diff == 1:  # Consecutive day
+                    current_streak += 1
+                elif days_diff == 0:  # Same day (update)
+                    pass  # Keep current streak
+                else:  # Gap in streak
+                    current_streak = 1
+            else:
+                current_streak = 1
+            
+            # Update longest streak if needed
+            longest_streak = max(longest_streak, current_streak)
+            
+            # Update streak record
+            cursor.execute("""
+                UPDATE habit_streaks
+                SET current_streak = ?, longest_streak = ?, 
+                    last_completed = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE goal_id = ?
+            """, (current_streak, longest_streak, completion_date, goal_id))
+            
+        except Exception as e:
+            logger.error(f"Failed to update habit streak: {e}")
+    
+    def get_habit_completions(self, goal_id: str = None, days: int = 30) -> List[Dict]:
+        """Get habit completion history"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+                
+                if goal_id:
+                    query = """
+                        SELECT goal_id, completed_date, progress, notes, created_at
+                        FROM habit_completions
+                        WHERE goal_id = ? AND completed_date >= ?
+                        ORDER BY completed_date DESC
+                    """
+                    cursor.execute(query, (goal_id, cutoff_date))
+                else:
+                    query = """
+                        SELECT goal_id, completed_date, progress, notes, created_at
+                        FROM habit_completions
+                        WHERE completed_date >= ?
+                        ORDER BY completed_date DESC
+                    """
+                    cursor.execute(query, (cutoff_date,))
+                
+                rows = cursor.fetchall()
+                
+                completions = []
+                for row in rows:
+                    completions.append({
+                        'goal_id': row[0],
+                        'completed_date': row[1],
+                        'progress': row[2],
+                        'notes': row[3],
+                        'created_at': row[4]
+                    })
+                
+                return completions
+                
+        except Exception as e:
+            logger.error(f"Failed to get habit completions: {e}")
+            return []
+    
+    def get_habits_summary(self) -> Dict:
+        """Get habits summary statistics"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                today = datetime.now().strftime('%Y-%m-%d')
+                
+                # Get total habits
+                cursor.execute("SELECT COUNT(*) FROM habits WHERE active = 1")
+                total_habits = cursor.fetchone()[0]
+                
+                # Get completed today
+                cursor.execute("""
+                    SELECT COUNT(*) FROM habit_completions 
+                    WHERE completed_date = ?
+                """, (today,))
+                completed_today = cursor.fetchone()[0]
+                
+                # Get longest streak
+                cursor.execute("SELECT MAX(longest_streak) FROM habit_streaks")
+                longest_streak = cursor.fetchone()[0] or 0
+                
+                return {
+                    'total_habits': total_habits,
+                    'completed_today': completed_today,
+                    'longest_streak': longest_streak,
+                    'completion_rate': (completed_today / total_habits * 100) if total_habits > 0 else 0
+                }
+                
+        except Exception as e:
+            logger.error(f"Failed to get habits summary: {e}")
+            return {
+                'total_habits': 0,
+                'completed_today': 0,
+                'longest_streak': 0,
+                'completion_rate': 0
+            }
+    
+    def get_recent_sentiment_analyses(self, days: int = 7) -> List[Dict]:
+        """Get recent sentiment analyses"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+                
+                cursor.execute("""
+                    SELECT text, sentiment, confidence, created_at, result_data
+                    FROM sentiment_analyses
+                    WHERE created_at >= ?
+                    ORDER BY created_at DESC
+                    LIMIT 1000
+                """, (cutoff_date,))
+                
+                rows = cursor.fetchall()
+                
+                analyses = []
+                for row in rows:
+                    result_data = {}
+                    if row[4]:  # result_data column
+                        try:
+                            result_data = json.loads(row[4])
+                        except:
+                            pass
+                    
+                    analyses.append({
+                        'text': row[0],
+                        'sentiment': row[1],
+                        'confidence': row[2],
+                        'timestamp': row[3],
+                        'emotions': result_data.get('emotions', {}),
+                        'linguistic_features': result_data.get('linguistic_features', {})
+                    })
+                
+                return analyses
+                
+        except Exception as e:
+            logger.error(f"Failed to get recent sentiment analyses: {e}")
+            return []
 
 # Global instance for compatibility
 real_db_manager = EnhancedDatabaseManager()

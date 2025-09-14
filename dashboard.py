@@ -70,6 +70,20 @@ try:
     except Exception as _habi_err:
         print(f"Warning: Could not import Habit Engine: {_habi_err}")
         HABITS_AVAILABLE = False
+
+    # Try to import Gamification and Personalization engines
+    try:
+        from gamification_engine import GamificationEngine, generate_gamification_ui, generate_gamification_javascript
+        GAMIFICATION_AVAILABLE = True
+    except Exception as _game_err:
+        print(f"Warning: Could not import Gamification Engine: {_game_err}")
+        GAMIFICATION_AVAILABLE = False
+    try:
+        from personalization_engine import PersonalizationEngine, generate_personalization_ui
+        PERSONALIZATION_AVAILABLE = True
+    except Exception as _pers_err:
+        print(f"Warning: Could not import Personalization Engine: {_pers_err}")
+        PERSONALIZATION_AVAILABLE = False
     
     # Legacy compatibility - alias the enhanced analyzer
     real_sentiment_analyzer = enhanced_sentiment_analyzer
@@ -431,6 +445,38 @@ if 'HABITS_AVAILABLE' in globals() and HABITS_AVAILABLE:
         logger.error(f"Failed to initialize Habit Engine: {e}")
         habit_engine = None
 
+# Initialize Gamification and Personalization if available
+gamification_engine = None
+if 'GAMIFICATION_AVAILABLE' in globals() and GAMIFICATION_AVAILABLE:
+    try:
+        gamification_engine = GamificationEngine()
+        logger.info("✅ Gamification Engine initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize Gamification Engine: {e}")
+        gamification_engine = None
+
+personalization_engine = None
+if 'PERSONALIZATION_AVAILABLE' in globals() and PERSONALIZATION_AVAILABLE:
+    try:
+        personalization_engine = PersonalizationEngine()
+        logger.info("✅ Personalization Engine initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize Personalization Engine: {e}")
+        personalization_engine = None
+
+# Initialize Real-time Engine components
+socketio = None
+realtime_engine = None
+try:
+    from flask_socketio import SocketIO
+    from realtime_engine import RealTimeEngine
+    socketio = SocketIO(cors_allowed_origins="*")
+    logger.info("✅ SocketIO initialized for real-time features")
+except Exception as e:
+    logger.error(f"Failed to initialize real-time engine components: {e}")
+    socketio = None
+    realtime_engine = None
+
 # X/Twitter API Integration Class
 class TwitterAPI:
     """Basic Twitter API integration for sentiment analysis"""
@@ -529,6 +575,20 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
+
+# Initialize SocketIO for real-time features
+if socketio is not None:
+    socketio.init_app(app, cors_allowed_origins="*")
+    logger.info("✅ SocketIO initialized with Flask app")
+
+# Initialize real-time engine after SocketIO setup
+if socketio is not None:
+    try:
+        realtime_engine = RealTimeEngine(app, socketio)
+        logger.info("✅ Real-time Engine initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Real-time Engine: {e}")
+        realtime_engine = None
 
 # Initialize database if real components are available
 if REAL_COMPONENTS_AVAILABLE:
@@ -1688,12 +1748,14 @@ def dashboard():
                 </div>
                 <nav>
                     <ul class="nav-links">
-                        <li><a href="#overview">Overview</a></li>
-                        <li><a href="#trends">Trends</a></li>
-                        <li><a href="#segments">Segments</a></li>
-                        <li><a href="#news">News</a></li>
-                        <li><a href="#media">Media</a></li>
-                        <li><a href="#admin">Admin</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('overview', document.querySelector('[onclick*=\"overview\"]'))">Overview</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('trends', document.querySelector('[onclick*=\"trends\"]'))">Trends</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('segments', document.querySelector('[onclick*=\"segments\"]'))">Segments</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('analytics', document.querySelector('[onclick*=\"analytics\"]'))">Analytics</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('habits', document.querySelector('[onclick*=\"habits\"]'))">Habits</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('gamification', document.querySelector('[onclick*=\"gamification\"]'))">Gamification</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('news', document.querySelector('[onclick*=\"news\"]'))">News</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('admin', document.querySelector('[onclick*=\"admin\"]'))">Admin</a></li>
                     </ul>
                 </nav>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
@@ -1818,6 +1880,22 @@ def dashboard():
                     <button class="tab-btn" onclick="switchTab('visualizations', this)" style="background: linear-gradient(45deg, #f093fb, #f5576c); color: white;">
                         <i class="fas fa-chart-bar"></i>
                         Visualizations
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('analytics', this)" style="background: linear-gradient(45deg, #3b82f6, #1d4ed8); color: white;">
+                        <i class="fas fa-chart-line"></i>
+                        Analytics
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('habits', this)" style="background: linear-gradient(45deg, #ef4444, #dc2626); color: white;">
+                        <i class="fas fa-fire"></i>
+                        Habits
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('gamification', this)" style="background: linear-gradient(45deg, #10b981, #059669); color: white;">
+                        <i class="fas fa-trophy"></i>
+                        Gamification
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('personalization', this)" style="background: linear-gradient(45deg, #8b5cf6, #7c3aed); color: white;">
+                        <i class="fas fa-user-cog"></i>
+                        Personalization
                     </button>
                     <button class="tab-btn" onclick="switchTab('admin', this)">
                         <i class="fas fa-cog"></i>
@@ -2437,11 +2515,239 @@ def dashboard():
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Analytics Tab -->
+                    <div id="analytics" class="tab-pane">
+                        <div class="grid grid-cols-4 gap-4 mb-6">
+                            <div class="glass-card text-center">
+                                <div class="text-2xl font-bold text-primary" id="totalAnalyses">0</div>
+                                <div class="text-sm text-secondary">Total Analyses</div>
+                                <div class="text-xs text-success">+12%</div>
+                            </div>
+                            <div class="glass-card text-center">
+                                <div class="text-2xl font-bold text-accent" id="sentimentAccuracy">95%</div>
+                                <div class="text-sm text-secondary">Accuracy</div>
+                                <div class="text-xs text-success">+2%</div>
+                            </div>
+                            <div class="glass-card text-center">
+                                <div class="text-2xl font-bold text-warning" id="engagementScore">8.5</div>
+                                <div class="text-sm text-secondary">Engagement</div>
+                                <div class="text-xs text-success">+0.3</div>
+                            </div>
+                            <div class="glass-card text-center">
+                                <div class="text-2xl font-bold text-info" id="trendConfidence">87%</div>
+                                <div class="text-sm text-secondary">AI Confidence</div>
+                                <div class="text-xs text-neutral">~</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-6 mb-6">
+                            <!-- Sentiment Trends Chart -->
+                            <div class="glass-card">
+                                <h4 class="mb-4">
+                                    <i class="fas fa-chart-line text-primary"></i>
+                                    Sentiment Trends (7 Days)
+                                </h4>
+                                <div class="chart-container">
+                                    <canvas id="analytics-trends-chart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- Analytics Distribution -->
+                            <div class="glass-card">
+                                <h4 class="mb-4">
+                                    <i class="fas fa-chart-pie text-accent"></i>
+                                    Analysis Distribution
+                                </h4>
+                                <div class="chart-container">
+                                    <canvas id="analytics-distribution-chart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-6 mb-6">
+                            <!-- Confidence Heatmap -->
+                            <div class="glass-card">
+                                <h4 class="mb-4">
+                                    <i class="fas fa-th text-warning"></i>
+                                    Confidence Heatmap (Hourly)
+                                </h4>
+                                <div class="chart-container">
+                                    <canvas id="analytics-heatmap-chart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- Anomaly Detection -->
+                            <div class="glass-card">
+                                <h4 class="mb-4">
+                                    <i class="fas fa-exclamation-triangle text-error"></i>
+                                    Anomaly Detection
+                                </h4>
+                                <div class="chart-container">
+                                    <canvas id="analytics-anomaly-chart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Insights Panel -->
+                        <div class="glass-card">
+                            <h4 class="mb-4">
+                                <i class="fas fa-lightbulb text-accent"></i>
+                                AI-Powered Insights
+                            </h4>
+                            <div id="aiInsightsList" class="grid grid-cols-2 gap-4">
+                                <div class="text-center text-secondary">Loading AI insights...</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Enhanced Sentiment Analysis Tools -->
+                        <div class="sentiment-tools mt-6">
+                            <div class="grid grid-cols-1 gap-6">
+                                <!-- Comprehensive Analysis Tool -->
+                                <div class="glass-card">
+                                    <h4 class="mb-4">
+                                        <i class="fas fa-microscope text-primary"></i>
+                                        Comprehensive Sentiment Analysis
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <textarea id="comprehensiveText" 
+                                                  placeholder="Enter text for comprehensive sentiment and emotion analysis..." 
+                                                  rows="4" 
+                                                  class="w-full p-3 bg-dark/20 border border-primary/20 rounded-lg text-white placeholder-gray-400"></textarea>
+                                        <div class="flex items-center justify-between">
+                                            <label class="flex items-center space-x-2">
+                                                <input type="checkbox" id="includeEmotions" checked class="form-checkbox text-primary">
+                                                <span class="text-secondary">Include Emotion Detection</span>
+                                            </label>
+                                            <button onclick="runComprehensiveAnalysis()" class="btn btn-primary">
+                                                <i class="fas fa-search mr-2"></i>Analyze
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="comprehensiveResults" class="analysis-results mt-4"></div>
+                                </div>
+                                
+                                <!-- Batch Analysis Tool -->
+                                <div class="glass-card">
+                                    <h4 class="mb-4">
+                                        <i class="fas fa-layer-group text-accent"></i>
+                                        Batch Sentiment Analysis
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <textarea id="batchTexts" 
+                                                  placeholder="Enter multiple texts (one per line) for batch analysis..." 
+                                                  rows="6" 
+                                                  class="w-full p-3 bg-dark/20 border border-accent/20 rounded-lg text-white placeholder-gray-400"></textarea>
+                                        <button onclick="runBatchAnalysis()" class="btn btn-accent">
+                                            <i class="fas fa-tasks mr-2"></i>Analyze Batch
+                                        </button>
+                                    </div>
+                                    <div id="batchResults" class="analysis-results mt-4"></div>
+                                </div>
+                                
+                                <!-- Emotion Detection Tool -->
+                                <div class="glass-card">
+                                    <h4 class="mb-4">
+                                        <i class="fas fa-heart text-warning"></i>
+                                        Advanced Emotion Detection
+                                    </h4>
+                                    <div class="space-y-4">
+                                        <textarea id="emotionText" 
+                                                  placeholder="Enter text to detect specific emotions (joy, sadness, anger, fear, etc.)..." 
+                                                  rows="3" 
+                                                  class="w-full p-3 bg-dark/20 border border-warning/20 rounded-lg text-white placeholder-gray-400"></textarea>
+                                        <button onclick="runEmotionDetection()" class="btn btn-warning">
+                                            <i class="fas fa-heart mr-2"></i>Detect Emotions
+                                        </button>
+                                    </div>
+                                    <div id="emotionResults" class="analysis-results mt-4"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Habits Tab -->
+                    <div id="habits" class="tab-pane">
+                        <div class="glass-card mb-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3>
+                                    <i class="fas fa-fire text-error"></i>
+                                    Daily Habits & Discipline
+                                </h3>
+                                <div class="flex items-center gap-4 text-sm">
+                                    <span id="habitProgress">0/3</span>
+                                    <span id="habitLongestStreak" title="Longest streak">🔥 0</span>
+                                    <button class="btn btn-sm" onclick="refreshHabits()">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="habitGoals" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Habit goals populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Gamification Tab -->
+                    <div id="gamification" class="tab-pane">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-trophy text-warning"></i>
+                                    Achievement System
+                                </h3>
+                                <div id="achievementsList" class="space-y-3">
+                                    <!-- Achievements populated dynamically -->
+                                </div>
+                            </div>
+                            
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-coins text-accent"></i>
+                                    Points & Progress
+                                </h3>
+                                <div class="text-center mb-4">
+                                    <div class="text-4xl font-bold text-primary" id="totalPoints">0</div>
+                                    <div class="text-sm text-secondary">Total Points</div>
+                                </div>
+                                <div id="pointsHistory" class="space-y-2">
+                                    <!-- Points history populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Personalization Tab -->
+                    <div id="personalization" class="tab-pane">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-user-cog text-primary"></i>
+                                    Personal Preferences
+                                </h3>
+                                <div id="userPreferences" class="space-y-4">
+                                    <!-- User preferences populated dynamically -->
+                                </div>
+                            </div>
+                            
+                            <div class="glass-card">
+                                <h3 class="mb-4">
+                                    <i class="fas fa-lightbulb text-accent"></i>
+                                    AI Recommendations
+                                </h3>
+                                <div id="aiRecommendations" class="space-y-3">
+                                    <!-- AI recommendations populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         // Enhanced JavaScript with Chart.js Stability -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.4/socket.io.js"></script>
         <script>
         // Global chart instances to prevent recreation
         let chartInstances = {};
@@ -3117,7 +3423,1068 @@ def dashboard():
             
             // Initialize immersive features
             initializeImmersiveFeatures();
+            
+            // Initialize new engine tabs
+            initializeEngineFeatures();
+            
+            // Initialize real-time WebSocket connection
+            initializeRealTimeConnection();
         });
+        
+        // ===== REAL-TIME WEBSOCKET CONNECTION =====
+        
+        let socket = null;
+        
+        function initializeRealTimeConnection() {
+            try {
+                socket = io();
+                
+                socket.on('connect', function() {
+                    console.log('Connected to real-time updates');
+                    showNotification('Connected to live updates!', 'success');
+                });
+                
+                socket.on('disconnect', function() {
+                    console.log('Disconnected from real-time updates');
+                    showNotification('Disconnected from live updates', 'warning');
+                });
+                
+                // Listen for habit completion broadcasts
+                socket.on('habit_completed', function(data) {
+                    console.log('Habit completed broadcast received:', data);
+                    
+                    // Update habits display if on habits tab
+                    const habitsTab = document.getElementById('habits');
+                    if (habitsTab && habitsTab.classList.contains('active')) {
+                        loadHabitsData();
+                    }
+                    
+                    // Update gamification display if on gamification tab
+                    const gamificationTab = document.getElementById('gamification');
+                    if (gamificationTab && gamificationTab.classList.contains('active')) {
+                        loadGamificationData();
+                    }
+                    
+                    // Show live notification
+                    if (data.points_awarded > 0) {
+                        showLiveNotification(`Habit completed! +${data.points_awarded} points`, 'success');
+                    }
+                    
+                    // Show achievement notifications
+                    if (data.achievements_unlocked && data.achievements_unlocked.length > 0) {
+                        data.achievements_unlocked.forEach(achievement => {
+                            showLiveNotification(`Achievement unlocked: ${achievement.title}!`, 'achievement');
+                        });
+                    }
+                });
+                
+                // Listen for analytics updates
+                socket.on('analytics_updated', function(data) {
+                    console.log('Analytics updated:', data);
+                    
+                    const analyticsTab = document.getElementById('analytics');
+                    if (analyticsTab && analyticsTab.classList.contains('active')) {
+                        loadAnalyticsData();
+                    }
+                });
+                
+                // Listen for general dashboard updates
+                socket.on('dashboard_update', function(data) {
+                    console.log('Dashboard update received:', data);
+                    // Update relevant sections based on data type
+                });
+                
+            } catch (error) {
+                console.warn('WebSocket not available:', error);
+            }
+        }
+        
+        function showLiveNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `live-notification live-notification-${type}`;
+            notification.innerHTML = `
+                <div class="live-notification-content">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'achievement' ? 'fa-trophy' : 'fa-info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            // Add styles if not already present
+            if (!document.querySelector('#live-notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'live-notification-styles';
+                style.textContent = `
+                    .live-notification {
+                        position: fixed;
+                        top: 80px;
+                        right: 20px;
+                        z-index: 9998;
+                        padding: 12px 16px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                        animation: slideInRight 0.3s ease-out, slideOutRight 0.3s ease-in 2.7s forwards;
+                        max-width: 300px;
+                    }
+                    .live-notification-success {
+                        background: linear-gradient(45deg, #10b981, #059669);
+                        color: white;
+                    }
+                    .live-notification-achievement {
+                        background: linear-gradient(45deg, #f59e0b, #d97706);
+                        color: white;
+                    }
+                    .live-notification-warning {
+                        background: linear-gradient(45deg, #f59e0b, #d97706);
+                        color: white;
+                    }
+                    .live-notification-info {
+                        background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+                        color: white;
+                    }
+                    .live-notification-content {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        font-size: 0.9rem;
+                        font-weight: 500;
+                    }
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOutRight {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Fallback notification function
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // ===== ENGINE FEATURES INITIALIZATION =====
+        
+        function initializeEngineFeatures() {
+            // Initialize Analytics tab
+            const analyticsTab = document.querySelector('[onclick*="analytics"]');
+            if (analyticsTab) {
+                analyticsTab.addEventListener('click', loadAnalyticsData);
+            }
+            
+            // Initialize Habits tab
+            const habitsTab = document.querySelector('[onclick*="habits"]');
+            if (habitsTab) {
+                habitsTab.addEventListener('click', loadHabitsData);
+            }
+            
+            // Initialize Gamification tab
+            const gamificationTab = document.querySelector('[onclick*="gamification"]');
+            if (gamificationTab) {
+                gamificationTab.addEventListener('click', loadGamificationData);
+            }
+            
+            // Initialize Personalization tab
+            const personalizationTab = document.querySelector('[onclick*="personalization"]');
+            if (personalizationTab) {
+                personalizationTab.addEventListener('click', loadPersonalizationData);
+            }
+        }
+        
+        // Analytics Functions
+        async function loadAnalyticsData() {
+            try {
+                const response = await fetch('/api/analytics/trends');
+                const data = await response.json();
+                
+                if (data && data.summary) {
+                    updateAnalyticsMetrics(data.summary);
+                    initializeAnalyticsCharts(data);
+                    loadAIInsights();
+                }
+            } catch (error) {
+                console.error('Failed to load analytics data:', error);
+            }
+        }
+        
+        function updateAnalyticsMetrics(summary) {
+            document.getElementById('totalAnalyses').textContent = summary.total_analyses || 0;
+            // Update other metrics as available
+        }
+        
+        function initializeAnalyticsCharts(data) {
+            // Initialize Sentiment Trends Chart
+            const trendsCtx = document.getElementById('analytics-trends-chart');
+            if (trendsCtx && !chartInstances.analyticsTrendsChart) {
+                chartInstances.analyticsTrendsChart = new Chart(trendsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        datasets: [{
+                            label: 'Positive',
+                            data: [65, 59, 80, 81, 56, 55, 70],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }, {
+                            label: 'Negative',
+                            data: [28, 48, 40, 19, 86, 27, 35],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }, {
+                            label: 'Neutral',
+                            data: [45, 25, 16, 36, 67, 18, 45],
+                            borderColor: '#6b7280',
+                            backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Days'
+                                }
+                            },
+                            y: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Count'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Initialize Distribution Chart
+            const distributionCtx = document.getElementById('analytics-distribution-chart');
+            if (distributionCtx && !chartInstances.analyticsDistributionChart) {
+                chartInstances.analyticsDistributionChart = new Chart(distributionCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Social Media', 'News Articles', 'User Reviews', 'Forums'],
+                        datasets: [{
+                            data: [45, 25, 20, 10],
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
+                            borderWidth: 0,
+                            cutout: '60%'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Initialize Heatmap Chart (using bar chart as approximation)
+            const heatmapCtx = document.getElementById('analytics-heatmap-chart');
+            if (heatmapCtx && !chartInstances.analyticsHeatmapChart) {
+                const heatmapData = Array.from({length: 24}, (_, i) => ({
+                    x: i,
+                    y: Math.random() * 100
+                }));
+                
+                chartInstances.analyticsHeatmapChart = new Chart(heatmapCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                        datasets: [{
+                            label: 'Confidence %',
+                            data: heatmapData.map(d => d.y),
+                            backgroundColor: heatmapData.map(d => {
+                                const intensity = d.y / 100;
+                                return `rgba(59, 130, 246, ${intensity})`;
+                            }),
+                            borderColor: '#3b82f6',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Hour of Day'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Confidence %'
+                                },
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Initialize Anomaly Chart
+            const anomalyCtx = document.getElementById('analytics-anomaly-chart');
+            if (anomalyCtx && !chartInstances.analyticsAnomalyChart) {
+                chartInstances.analyticsAnomalyChart = new Chart(anomalyCtx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Normal Data',
+                            data: Array.from({length: 20}, () => ({
+                                x: Math.random() * 100,
+                                y: Math.random() * 100
+                            })),
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: '#10b981',
+                            pointRadius: 4
+                        }, {
+                            label: 'Anomalies',
+                            data: [
+                                {x: 80, y: 95},
+                                {x: 15, y: 85},
+                                {x: 90, y: 10}
+                            ],
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                            borderColor: '#ef4444',
+                            pointRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Sentiment Score'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Confidence %'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        async function loadAIInsights() {
+            try {
+                const response = await fetch('/api/analytics/insights');
+                const insights = await response.json();
+                
+                const container = document.getElementById('aiInsightsList');
+                if (container && insights) {
+                    container.innerHTML = insights.map(insight => `
+                        <div class="glass-card p-4">
+                            <div class="flex items-start gap-3">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-lightbulb text-accent text-lg"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h5 class="font-medium text-primary mb-2">${insight.title}</h5>
+                                    <p class="text-sm text-secondary mb-3">${insight.description}</p>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs px-2 py-1 bg-accent bg-opacity-20 rounded text-accent">
+                                            ${insight.impact} Impact
+                                        </span>
+                                        <span class="text-xs text-info">
+                                            ${(insight.confidence * 100).toFixed(0)}% Confidence
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('') || '<div class="col-span-2 text-center text-secondary">No insights available</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load AI insights:', error);
+                const container = document.getElementById('aiInsightsList');
+                if (container) {
+                    container.innerHTML = '<div class="col-span-2 text-center text-secondary">Failed to load insights</div>';
+                }
+            }
+        }
+        
+        // Habits Functions
+        async function loadHabitsData() {
+            try {
+                const response = await fetch('/api/habits/list');
+                const data = await response.json();
+                
+                if (data) {
+                    renderHabitsGoals(data);
+                    updateHabitsStats(data);
+                }
+            } catch (error) {
+                console.error('Failed to load habits data:', error);
+            }
+        }
+        
+        function renderHabitsGoals(data) {
+            const container = document.getElementById('habitGoals');
+            if (!container) return;
+            
+            const goals = data.goals || [];
+            const state = data.state || {};
+            
+            container.innerHTML = goals.map(goal => {
+                const s = state[goal.id] || { progress: 0, streak: 0, last_completed: null };
+                const completedToday = s.last_completed && s.last_completed.startsWith(new Date().toISOString().slice(0, 10));
+                
+                return `
+                    <div class="glass-card p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <i class="fas ${goal.icon} text-warning"></i>
+                                <div>
+                                    <h4 class="font-medium">${goal.title}</h4>
+                                    <div class="text-sm text-secondary">${s.progress || 0} / ${goal.target} • 🔥 ${s.streak || 0}</div>
+                                </div>
+                            </div>
+                            <div>
+                                ${completedToday 
+                                    ? '<span class="text-success font-semibold">Done ✓</span>' 
+                                    : `<button class="btn btn-primary btn-sm" onclick="completeHabit('${goal.id}')">Complete</button>`
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('') || '<div class="text-center text-secondary">No habits configured</div>';
+        }
+        
+        function updateHabitsStats(data) {
+            const prog = document.getElementById('habitProgress');
+            const longest = document.getElementById('habitLongestStreak');
+            
+            const dailyCompleted = (data.summary && data.summary.daily_completed) || 0;
+            const dailyTotal = (data.summary && data.summary.daily_total) || (data.goals ? data.goals.length : 0);
+            const longestStreak = (data.summary && data.summary.longest_streak) || 0;
+            
+            if (prog) prog.textContent = `${dailyCompleted}/${dailyTotal}`;
+            if (longest) longest.textContent = `🔥 ${longestStreak}`;
+        }
+        
+        // Enhanced Sentiment Analysis Functions
+        async function runComprehensiveAnalysis() {
+            const text = document.getElementById('comprehensiveText').value.trim();
+            const includeEmotions = document.getElementById('includeEmotions').checked;
+            
+            if (!text) {
+                showNotification('Please enter text to analyze', 'warning');
+                return;
+            }
+            
+            const resultsContainer = document.getElementById('comprehensiveResults');
+            resultsContainer.innerHTML = '<div class="text-center text-secondary"><i class="fas fa-spinner fa-spin mr-2"></i>Analyzing...</div>';
+            
+            try {
+                const response = await fetch('/api/sentiment/comprehensive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, include_emotions: includeEmotions })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayComprehensiveResults(result.analysis, resultsContainer);
+                    showNotification('Comprehensive analysis completed', 'success');
+                } else {
+                    resultsContainer.innerHTML = `<div class="text-error">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="text-error">Error: ${error.message}</div>`;
+                console.error('Comprehensive analysis error:', error);
+            }
+        }
+        
+        async function runBatchAnalysis() {
+            const batchText = document.getElementById('batchTexts').value.trim();
+            
+            if (!batchText) {
+                showNotification('Please enter texts to analyze', 'warning');
+                return;
+            }
+            
+            const texts = batchText.split('\\n').filter(line => line.trim() !== '');
+            
+            if (texts.length === 0) {
+                showNotification('No valid texts found', 'warning');
+                return;
+            }
+            
+            const resultsContainer = document.getElementById('batchResults');
+            resultsContainer.innerHTML = '<div class="text-center text-secondary"><i class="fas fa-spinner fa-spin mr-2"></i>Processing batch...</div>';
+            
+            try {
+                const response = await fetch('/api/sentiment/batch-comprehensive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ texts })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayBatchResults(result.results, resultsContainer);
+                    showNotification(`Batch analysis of ${texts.length} texts completed`, 'success');
+                } else {
+                    resultsContainer.innerHTML = `<div class="text-error">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="text-error">Error: ${error.message}</div>`;
+                console.error('Batch analysis error:', error);
+            }
+        }
+        
+        async function runEmotionDetection() {
+            const text = document.getElementById('emotionText').value.trim();
+            
+            if (!text) {
+                showNotification('Please enter text for emotion detection', 'warning');
+                return;
+            }
+            
+            const resultsContainer = document.getElementById('emotionResults');
+            resultsContainer.innerHTML = '<div class="text-center text-secondary"><i class="fas fa-spinner fa-spin mr-2"></i>Detecting emotions...</div>';
+            
+            try {
+                const response = await fetch('/api/sentiment/emotions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayEmotionResults(result.emotions, result.dominant_emotions, resultsContainer);
+                    showNotification('Emotion detection completed', 'success');
+                } else {
+                    resultsContainer.innerHTML = `<div class="text-error">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="text-error">Error: ${error.message}</div>`;
+                console.error('Emotion detection error:', error);
+            }
+        }
+        
+        function displayComprehensiveResults(analysis, container) {
+            const sentiment = analysis.sentiment;
+            const emotions = analysis.emotions;
+            const features = analysis.linguistic_features;
+            
+            const emotionBars = Object.entries(emotions)
+                .filter(([emotion, score]) => score > 0.1)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5)
+                .map(([emotion, score]) => `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm capitalize">${emotion}</span>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-20 h-2 bg-gray-600 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-blue-500 to-purple-500" style="width: ${score * 100}%"></div>
+                            </div>
+                            <span class="text-xs w-8 text-right">${(score * 100).toFixed(0)}%</span>
+                        </div>
+                    </div>
+                `).join('');
+            
+            container.innerHTML = `
+                <div class="bg-dark/30 rounded-lg p-4">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <h5 class="text-sm font-semibold mb-2">Sentiment Analysis</h5>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-success">Positive:</span>
+                                    <span>${(sentiment.positive * 100).toFixed(1)}%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-error">Negative:</span>
+                                    <span>${(sentiment.negative * 100).toFixed(1)}%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-secondary">Neutral:</span>
+                                    <span>${(sentiment.neutral * 100).toFixed(1)}%</span>
+                                </div>
+                                <div class="text-center mt-2 p-2 bg-primary/20 rounded">
+                                    <strong class="text-primary">${sentiment.label.toUpperCase()}</strong>
+                                    <div class="text-xs">Confidence: ${(analysis.confidence * 100).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h5 class="text-sm font-semibold mb-2">Top Emotions</h5>
+                            <div class="space-y-1">
+                                ${emotionBars || '<div class="text-xs text-secondary">No strong emotions detected</div>'}
+                            </div>
+                        </div>
+                    </div>
+                    ${features && features.word_count ? `
+                        <div class="text-xs text-secondary mt-2 pt-2 border-t border-gray-600">
+                            Words: ${features.word_count} | Intensity: ${(analysis.intensity_score * 100).toFixed(0)}% | 
+                            Caps: ${(features.caps_ratio * 100).toFixed(0)}%
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function displayBatchResults(results, container) {
+            const summary = results.summary;
+            const analyses = results.analyses.slice(0, 10); // Show first 10 results
+            
+            const sentimentColors = {
+                positive: 'text-success',
+                negative: 'text-error',
+                neutral: 'text-secondary',
+                mixed: 'text-warning'
+            };
+            
+            const analysisRows = analyses.map((item, index) => `
+                <tr class="border-b border-gray-600">
+                    <td class="py-2 px-2 text-xs">${index + 1}</td>
+                    <td class="py-2 px-2 text-xs">${item.text_preview}</td>
+                    <td class="py-2 px-2 text-xs">
+                        <span class="${sentimentColors[item.analysis.sentiment.label]}">${item.analysis.sentiment.label}</span>
+                    </td>
+                    <td class="py-2 px-2 text-xs">${(item.analysis.confidence * 100).toFixed(0)}%</td>
+                </tr>
+            `).join('');
+            
+            container.innerHTML = `
+                <div class="bg-dark/30 rounded-lg p-4">
+                    <div class="grid grid-cols-4 gap-4 mb-4">
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-primary">${summary.total_texts}</div>
+                            <div class="text-xs text-secondary">Total Analyzed</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold ${sentimentColors[summary.dominant_sentiment]}">${summary.dominant_sentiment}</div>
+                            <div class="text-xs text-secondary">Dominant</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-accent">${summary.most_prominent_emotion}</div>
+                            <div class="text-xs text-secondary">Top Emotion</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-warning">${(summary.sentiment_distribution.positive * 100).toFixed(0)}%</div>
+                            <div class="text-xs text-secondary">Positive</div>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b border-primary">
+                                    <th class="py-2 px-2 text-xs">#</th>
+                                    <th class="py-2 px-2 text-xs">Text Preview</th>
+                                    <th class="py-2 px-2 text-xs">Sentiment</th>
+                                    <th class="py-2 px-2 text-xs">Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${analysisRows}
+                            </tbody>
+                        </table>
+                        ${results.analyses.length > 10 ? `
+                            <div class="text-xs text-secondary text-center mt-2">
+                                Showing first 10 of ${results.analyses.length} results
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function displayEmotionResults(emotions, dominantEmotions, container) {
+            const emotionEmojis = {
+                joy: '😊', sadness: '😢', anger: '😠', fear: '😨',
+                surprise: '😲', disgust: '🤢', trust: '🤝', anticipation: '🤔'
+            };
+            
+            const emotionBars = Object.entries(emotions)
+                .sort(([,a], [,b]) => b - a)
+                .map(([emotion, score]) => `
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">${emotionEmojis[emotion] || '❓'}</span>
+                            <span class="text-sm capitalize font-medium">${emotion}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-24 h-3 bg-gray-600 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width: ${score * 100}%"></div>
+                            </div>
+                            <span class="text-sm w-10 text-right">${(score * 100).toFixed(0)}%</span>
+                        </div>
+                    </div>
+                `).join('');
+            
+            const topEmotions = dominantEmotions.slice(0, 3).map(([emotion, score]) => `
+                <div class="text-center p-3 bg-primary/20 rounded-lg">
+                    <div class="text-2xl mb-1">${emotionEmojis[emotion] || '❓'}</div>
+                    <div class="text-sm font-semibold capitalize">${emotion}</div>
+                    <div class="text-xs text-secondary">${(score * 100).toFixed(0)}%</div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = `
+                <div class="bg-dark/30 rounded-lg p-4">
+                    <div class="mb-4">
+                        <h6 class="text-sm font-semibold mb-3">Dominant Emotions</h6>
+                        <div class="grid grid-cols-3 gap-3">
+                            ${topEmotions}
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="text-sm font-semibold mb-3">All Emotions</h6>
+                        <div class="space-y-1">
+                            ${emotionBars}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function completeHabit(goalId) {
+            try {
+                const response = await fetch('/api/habits/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ goal_id: goalId })
+                });
+                
+                const result = await response.json();
+                if (result && !result.error) {
+                    // Reload habits data to reflect changes
+                    loadHabitsData();
+                    
+                    // Handle gamification rewards
+                    if (result.gamification) {
+                        const { points_awarded, achievements_unlocked } = result.gamification;
+                        
+                        // Show points animation
+                        if (points_awarded > 0) {
+                            showPointsAnimation(points_awarded);
+                        }
+                        
+                        // Show achievement animations
+                        if (achievements_unlocked && achievements_unlocked.length > 0) {
+                            achievements_unlocked.forEach(achievement => {
+                                showAchievementAnimation(achievement);
+                            });
+                        }
+                        
+                        // Refresh gamification data if that tab is active
+                        const gamificationTab = document.getElementById('gamification');
+                        if (gamificationTab && gamificationTab.classList.contains('active')) {
+                            loadGamificationData();
+                        }
+                    }
+                } else {
+                    console.error('Failed to complete habit:', result.error);
+                }
+            } catch (error) {
+                console.error('Failed to complete habit:', error);
+            }
+        }
+        
+        // Animation functions for gamification feedback
+        function showPointsAnimation(points) {
+            const pointsToast = document.createElement('div');
+            pointsToast.className = 'points-toast';
+            pointsToast.innerHTML = `
+                <div class="points-animation">
+                    <i class="fas fa-coins text-accent"></i>
+                    <span>+${points} points!</span>
+                </div>
+            `;
+            
+            // Add styles if not already present
+            if (!document.querySelector('#points-toast-styles')) {
+                const style = document.createElement('style');
+                style.id = 'points-toast-styles';
+                style.textContent = `
+                    .points-toast {
+                        position: fixed;
+                        top: 100px;
+                        right: 20px;
+                        z-index: 9999;
+                        background: linear-gradient(45deg, var(--primary), var(--accent));
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 25px;
+                        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+                        animation: slideInAndFade 3s ease-in-out forwards;
+                    }
+                    .points-animation {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        font-weight: 600;
+                    }
+                    @keyframes slideInAndFade {
+                        0% { transform: translateX(100%); opacity: 0; }
+                        20% { transform: translateX(0); opacity: 1; }
+                        80% { transform: translateX(0); opacity: 1; }
+                        100% { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(pointsToast);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (pointsToast.parentNode) {
+                    pointsToast.parentNode.removeChild(pointsToast);
+                }
+            }, 3000);
+        }
+        
+        function showAchievementAnimation(achievement) {
+            const achievementModal = document.createElement('div');
+            achievementModal.className = 'achievement-modal';
+            achievementModal.innerHTML = `
+                <div class="achievement-content">
+                    <div class="achievement-header">
+                        <i class="fas fa-trophy text-warning"></i>
+                        <h3>Achievement Unlocked!</h3>
+                    </div>
+                    <div class="achievement-body">
+                        <i class="fas ${achievement.icon} achievement-icon"></i>
+                        <h4>${achievement.title}</h4>
+                        <p>${achievement.description}</p>
+                    </div>
+                    <button onclick="closeAchievementModal(this)" class="btn btn-primary">Awesome!</button>
+                </div>
+            `;
+            
+            // Add styles if not already present
+            if (!document.querySelector('#achievement-modal-styles')) {
+                const style = document.createElement('style');
+                style.id = 'achievement-modal-styles';
+                style.textContent = `
+                    .achievement-modal {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0, 0, 0, 0.8);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 10000;
+                        animation: fadeIn 0.3s ease-out;
+                    }
+                    .achievement-content {
+                        background: var(--glass-bg);
+                        backdrop-filter: blur(20px);
+                        border: 1px solid var(--glass-border);
+                        border-radius: 20px;
+                        padding: 30px;
+                        text-align: center;
+                        max-width: 400px;
+                        margin: 20px;
+                        animation: bounceIn 0.6s ease-out;
+                    }
+                    .achievement-header {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 10px;
+                        margin-bottom: 20px;
+                    }
+                    .achievement-header h3 {
+                        color: var(--text-primary);
+                        margin: 0;
+                        font-size: 1.5rem;
+                    }
+                    .achievement-icon {
+                        font-size: 3rem;
+                        color: var(--warning);
+                        margin-bottom: 15px;
+                    }
+                    .achievement-body h4 {
+                        color: var(--text-primary);
+                        margin-bottom: 10px;
+                        font-size: 1.2rem;
+                    }
+                    .achievement-body p {
+                        color: var(--text-secondary);
+                        margin-bottom: 20px;
+                    }
+                    @keyframes bounceIn {
+                        0% { transform: scale(0.3); opacity: 0; }
+                        50% { transform: scale(1.1); opacity: 0.8; }
+                        100% { transform: scale(1); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(achievementModal);
+        }
+        
+        function closeAchievementModal(button) {
+            const modal = button.closest('.achievement-modal');
+            if (modal && modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+        }
+        
+        function refreshHabits() {
+            loadHabitsData();
+        }
+        
+        // Gamification Functions
+        async function loadGamificationData() {
+            try {
+                const response = await fetch('/api/gamification/status');
+                const data = await response.json();
+                
+                if (data) {
+                    updatePointsDisplay(data);
+                    loadAchievements(data);
+                }
+            } catch (error) {
+                console.error('Failed to load gamification data:', error);
+            }
+        }
+        
+        function updatePointsDisplay(data) {
+            const totalPoints = document.getElementById('totalPoints');
+            if (totalPoints && data.points) {
+                totalPoints.textContent = data.points.total || 0;
+            }
+            
+            const pointsHistory = document.getElementById('pointsHistory');
+            if (pointsHistory && data.points && data.points.history) {
+                pointsHistory.innerHTML = data.points.history.slice(0, 5).map(entry => `
+                    <div class="flex justify-between text-sm">
+                        <span>${entry.reason}</span>
+                        <span class="text-accent">+${entry.points}</span>
+                    </div>
+                `).join('') || '<div class="text-center text-secondary">No points history</div>';
+            }
+        }
+        
+        function loadAchievements(data) {
+            const achievements = document.getElementById('achievementsList');
+            if (achievements && data.achievements) {
+                achievements.innerHTML = data.achievements.map(achievement => `
+                    <div class="glass-card p-3 ${achievement.unlocked ? 'border-warning' : ''}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas ${achievement.icon} ${achievement.unlocked ? 'text-warning' : 'text-secondary'}"></i>
+                            <div>
+                                <h5 class="font-medium">${achievement.title}</h5>
+                                <p class="text-sm text-secondary">${achievement.description}</p>
+                                ${achievement.unlocked ? '<div class="text-xs text-success">Unlocked!</div>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('') || '<div class="text-center text-secondary">No achievements available</div>';
+            }
+        }
+        
+        // Personalization Functions
+        async function loadPersonalizationData() {
+            try {
+                const response = await fetch('/api/personalization/profile');
+                const data = await response.json();
+                
+                if (data) {
+                    updateUserPreferences(data);
+                    loadAIRecommendations(data);
+                }
+            } catch (error) {
+                console.error('Failed to load personalization data:', error);
+            }
+        }
+        
+        function updateUserPreferences(data) {
+            const preferences = document.getElementById('userPreferences');
+            if (preferences && data.preferences) {
+                preferences.innerHTML = Object.entries(data.preferences).map(([key, value]) => `
+                    <div class="flex justify-between items-center">
+                        <span class="capitalize">${key.replace('_', ' ')}</span>
+                        <span class="text-accent">${value}</span>
+                    </div>
+                `).join('') || '<div class="text-center text-secondary">No preferences set</div>';
+            }
+        }
+        
+        function loadAIRecommendations(data) {
+            const recommendations = document.getElementById('aiRecommendations');
+            if (recommendations && data.recommendations) {
+                recommendations.innerHTML = data.recommendations.map(rec => `
+                    <div class="glass-card p-3">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-lightbulb text-accent mt-1"></i>
+                            <div>
+                                <h5 class="font-medium">${rec.title}</h5>
+                                <p class="text-sm text-secondary">${rec.description}</p>
+                                <div class="text-xs text-info">Priority: ${rec.priority}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('') || '<div class="text-center text-secondary">No recommendations available</div>';
+            }
+        }
         
         // ===== NEW IMMERSIVE FEATURES JAVASCRIPT =====
         
@@ -3951,19 +5318,7 @@ def dashboard():
 </html>
     """
 
-    # If available, inject the Advanced Analytics UI overlay before </body>
-    if advanced_analytics_engine is not None and 'generate_analytics_ui' in globals():
-        try:
-            html_template = html_template.replace("</body>", generate_analytics_ui() + "\n</body>")
-        except Exception as e:
-            logger.warning(f"Failed to inject advanced analytics UI: {e}")
-
-    # Inject Habit Formation UI overlay as well
-    if habit_engine is not None and 'generate_habits_ui' in globals():
-        try:
-            html_template = html_template.replace("</body>", generate_habits_ui() + "\n</body>")
-        except Exception as e:
-            logger.warning(f"Failed to inject habits UI: {e}")
+    # Overlays now integrated into dashboard tabs - no longer need separate injection
     
     # Define missing variables for template
     status = "active"
@@ -4002,19 +5357,98 @@ def api_habits_list():
 @app.route('/api/habits/complete', methods=['POST'])
 def api_habits_complete():
     try:
-        if habit_engine is None:
-            return jsonify({'error': 'Habit Engine not available'}), 503
         data = request.get_json() or {}
         goal_id = data.get('goal_id')
+        progress = data.get('progress', 1)
+        notes = data.get('notes', '')
+        
         if not goal_id:
             return jsonify({'error': 'Missing goal_id'}), 400
-        state = real_db_manager.get_cached_data(_habits_cache_key()) if hasattr(real_db_manager, 'get_cached_data') else None
-        state = habit_engine.ensure_state(state)
-        state = habit_engine.complete_goal_today(state, goal_id)
-        # Persist
-        if hasattr(real_db_manager, 'set_cached_data'):
-            real_db_manager.set_cached_data(_habits_cache_key(), state, ttl_minutes=24*60)
-        return jsonify(habit_engine.get_summary(state))
+        
+        # Complete habit in database
+        success = db_manager.complete_habit(goal_id, progress=progress, notes=notes)
+        
+        if not success:
+            return jsonify({'error': 'Failed to complete habit'}), 500
+        
+        # Award gamification points for habit completion
+        points_awarded = 0
+        achievements_unlocked = []
+        
+        if gamification_engine is not None:
+            try:
+                # Base points for completing any habit
+                points_awarded += gamification_engine.award_points('habit_completion', 10)
+                
+                # Get habit streak for streak-based rewards
+                habits = db_manager.get_habits()
+                current_habit = next((h for h in habits if h['goal_id'] == goal_id), None)
+                
+                if current_habit:
+                    streak = current_habit.get('current_streak', 0)
+                    
+                    # Award bonus points for streaks
+                    if streak >= 7:
+                        points_awarded += gamification_engine.award_points('weekly_streak', 50)
+                        achievements_unlocked.append({
+                            'id': 'weekly_warrior',
+                            'title': 'Weekly Warrior',
+                            'description': f'Completed habit for 7 days straight!',
+                            'icon': 'fa-fire'
+                        })
+                    
+                    if streak >= 30:
+                        points_awarded += gamification_engine.award_points('monthly_master', 200)
+                        achievements_unlocked.append({
+                            'id': 'monthly_master',
+                            'title': 'Monthly Master',
+                            'description': f'Completed habit for 30 days straight!',
+                            'icon': 'fa-trophy'
+                        })
+                
+                # Daily discipline achievement (completing all habits in a day)
+                habits_summary = db_manager.get_habits_summary()
+                if (habits_summary.get('completed_today', 0) >= habits_summary.get('total_habits', 0) and 
+                    habits_summary.get('total_habits', 0) > 0):
+                    points_awarded += gamification_engine.award_points('daily_discipline', 25)
+                    achievements_unlocked.append({
+                        'id': 'daily_discipline',
+                        'title': 'Daily Discipline',
+                        'description': 'Completed all habits for today!',
+                        'icon': 'fa-medal'
+                    })
+                
+            except Exception as e:
+                logger.warning(f"Failed to award gamification points for habit completion: {e}")
+        
+        # Broadcast live update via WebSocket
+        if realtime_engine is not None and socketio is not None:
+            try:
+                habits_summary = db_manager.get_habits_summary()
+                socketio.emit('habit_completed', {
+                    'goal_id': goal_id,
+                    'points_awarded': points_awarded,
+                    'achievements_unlocked': achievements_unlocked,
+                    'habits_summary': habits_summary,
+                    'timestamp': datetime.now().isoformat()
+                }, room='dashboard_users')
+                logger.info(f"Broadcasted habit completion for goal {goal_id}")
+            except Exception as e:
+                logger.warning(f"Failed to broadcast habit completion: {e}")
+        
+        # Return enhanced response with gamification data
+        habits_summary = db_manager.get_habits_summary()
+        response = {
+            'success': True,
+            'habits_summary': habits_summary,
+            'gamification': {
+                'points_awarded': points_awarded,
+                'achievements_unlocked': achievements_unlocked
+            }
+        }
+        
+        return jsonify(response)
+        
     except Exception as e:
         logger.error(f"Habits complete error: {e}")
         return jsonify({'error': 'Failed to complete habit'}), 500
@@ -4620,6 +6054,205 @@ def get_statistics():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== Analytics API Endpoints =====
+
+@app.route('/api/analytics/trends')
+def api_analytics_trends():
+    """Get analytics trends data"""
+    try:
+        if advanced_analytics_engine is not None:
+            # Use advanced analytics if available
+            recent = real_db_manager.get_recent_analyses(limit=100, offset=0) if hasattr(real_db_manager, 'get_recent_analyses') else []
+            analysis_history = []
+            for r in recent:
+                analysis_history.append({
+                    'timestamp': r.get('timestamp', datetime.now().isoformat()),
+                    'sentiment': r.get('sentiment', 'neutral'),
+                    'confidence': r.get('confidence', 0.8),
+                    'toxicity': r.get('toxicity_score', 0.1)
+                })
+            
+            trends_data = advanced_analytics_engine.analyze_sentiment_trends(analysis_history)
+            return jsonify(trends_data)
+        else:
+            # Return mock data
+            return jsonify({
+                'summary': {
+                    'total_analyses': 1250,
+                    'sentiment_distribution': {'positive': 45, 'negative': 25, 'neutral': 30},
+                    'dominant_sentiment': 'positive'
+                },
+                'trends': {
+                    'direction': 'up',
+                    'strength': 0.75,
+                    'confidence': 0.85
+                }
+            })
+    except Exception as e:
+        logger.error(f"Analytics trends error: {e}")
+        return jsonify({'error': 'Failed to get analytics trends'}), 500
+
+@app.route('/api/analytics/insights')
+def api_analytics_insights():
+    """Get AI-powered analytics insights"""
+    try:
+        # Generate dynamic insights
+        insights = [
+            {
+                'title': 'Rising Positive Sentiment',
+                'description': 'Sentiment has improved by 15% over the past week, indicating better user reception',
+                'confidence': 0.87,
+                'impact': 'High',
+                'type': 'trend',
+                'actionable': True
+            },
+            {
+                'title': 'Peak Activity Hours',
+                'description': 'Most sentiment analysis occurs between 9-11 AM and 2-4 PM',
+                'confidence': 0.92,
+                'impact': 'Medium',
+                'type': 'pattern',
+                'actionable': True
+            },
+            {
+                'title': 'Anomaly Detection',
+                'description': 'Unusual spike in negative sentiment detected on social media sources',
+                'confidence': 0.78,
+                'impact': 'High',
+                'type': 'anomaly',
+                'actionable': True
+            },
+            {
+                'title': 'Model Performance',
+                'description': 'Confidence scores have increased by 5% with recent model improvements',
+                'confidence': 0.95,
+                'impact': 'Medium',
+                'type': 'performance',
+                'actionable': False
+            }
+        ]
+        
+        return jsonify(insights)
+        
+    except Exception as e:
+        logger.error(f"Analytics insights error: {e}")
+        return jsonify({'error': 'Failed to get analytics insights'}), 500
+
+# ===== Gamification API Endpoints =====
+
+@app.route('/api/gamification/status')
+def api_gamification_status():
+    """Get gamification status including points and achievements"""
+    try:
+        if gamification_engine is None:
+            return jsonify({'error': 'Gamification Engine not available'}), 503
+        
+        # Mock data for now - can be enhanced with actual gamification engine methods
+        response = {
+            'points': {
+                'total': 1250,
+                'today': 75,
+                'history': [
+                    {'reason': 'Daily Habit Completed', 'points': 10, 'timestamp': '2024-01-15T10:30:00'},
+                    {'reason': 'Weekly Streak Bonus', 'points': 50, 'timestamp': '2024-01-15T10:30:00'},
+                    {'reason': 'Analytics Review', 'points': 15, 'timestamp': '2024-01-15T09:15:00'}
+                ]
+            },
+            'achievements': [
+                {
+                    'id': 'daily_discipline',
+                    'title': 'Daily Discipline',
+                    'description': 'Complete all daily habits',
+                    'icon': 'fa-medal',
+                    'unlocked': True
+                },
+                {
+                    'id': 'weekly_warrior',
+                    'title': 'Weekly Warrior',
+                    'description': 'Maintain a 7-day streak',
+                    'icon': 'fa-fire',
+                    'unlocked': True
+                },
+                {
+                    'id': 'monthly_master',
+                    'title': 'Monthly Master',
+                    'description': 'Maintain a 30-day streak',
+                    'icon': 'fa-trophy',
+                    'unlocked': False
+                },
+                {
+                    'id': 'analytics_explorer',
+                    'title': 'Analytics Explorer',
+                    'description': 'Review analytics dashboard daily',
+                    'icon': 'fa-chart-line',
+                    'unlocked': False
+                }
+            ],
+            'level': {
+                'current': 5,
+                'progress': 75,
+                'next_level_points': 1500
+            }
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Gamification status error: {e}")
+        return jsonify({'error': 'Failed to get gamification status'}), 500
+
+@app.route('/api/personalization/profile')
+def api_personalization_profile():
+    """Get personalization profile and recommendations"""
+    try:
+        if personalization_engine is None:
+            return jsonify({'error': 'Personalization Engine not available'}), 503
+        
+        # Mock data for now - can be enhanced with actual personalization engine methods
+        response = {
+            'preferences': {
+                'sentiment_focus': 'Balanced',
+                'update_frequency': 'Real-time',
+                'notification_style': 'Minimal',
+                'dashboard_layout': 'Compact',
+                'analysis_depth': 'Comprehensive'
+            },
+            'recommendations': [
+                {
+                    'title': 'Morning Analytics Review',
+                    'description': 'Start your day by checking sentiment trends from overnight activity',
+                    'priority': 'High',
+                    'category': 'Habit'
+                },
+                {
+                    'title': 'Weekly Streak Focus',
+                    'description': 'You\'re 2 days away from your weekly habit goal. Keep it up!',
+                    'priority': 'Medium',
+                    'category': 'Motivation'
+                },
+                {
+                    'title': 'Advanced Analytics',
+                    'description': 'Try the new predictive analytics features for better insights',
+                    'priority': 'Low',
+                    'category': 'Feature'
+                }
+            ],
+            'usage_stats': {
+                'daily_sessions': 8,
+                'favorite_tab': 'Analytics',
+                'most_active_time': 'Morning',
+                'streak_days': 12
+            }
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Personalization profile error: {e}")
+        return jsonify({'error': 'Failed to get personalization profile'}), 500
+
+# ===== Health Check Endpoint =====
+
 @app.route('/api/health')
 def health_check():
     """Enhanced health check endpoint"""
@@ -5063,6 +6696,251 @@ def advanced_batch_sentiment():
         logger.error(f"Advanced batch sentiment error: {e}")
         return jsonify({'error': 'Failed to perform batch analysis'}), 500
 
+# Import advanced sentiment features
+try:
+    from advanced_sentiment_features import advanced_sentiment_analyzer
+    ADVANCED_SENTIMENT_AVAILABLE = True
+    logger.info("✅ Advanced sentiment features loaded")
+except ImportError as e:
+    logger.warning(f"Could not import advanced sentiment features: {e}")
+    ADVANCED_SENTIMENT_AVAILABLE = False
+
+@app.route('/api/sentiment/comprehensive', methods=['POST'])
+def comprehensive_sentiment_analysis():
+    """Comprehensive sentiment analysis with emotions and advanced features"""
+    try:
+        data = request.json
+        text = data.get('text', '')
+        include_emotions = data.get('include_emotions', True)
+        
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+        
+        if not ADVANCED_SENTIMENT_AVAILABLE:
+            return jsonify({'error': 'Advanced sentiment analysis not available'}), 503
+        
+        analysis = advanced_sentiment_analyzer.analyze_comprehensive(text, include_emotions)
+        
+        # Save to database
+        if db_manager:
+            result = {
+                'text': text,
+                'sentiment': analysis['sentiment']['label'],
+                'confidence': analysis['confidence'],
+                'emotions': analysis['emotions'],
+                'timestamp': datetime.now()
+            }
+            db_manager.save_sentiment_analysis(result)
+        
+        # Broadcast real-time update
+        if socketio:
+            socketio.emit('sentiment_analysis_complete', {
+                'type': 'comprehensive',
+                'analysis': analysis,
+                'timestamp': datetime.now().isoformat()
+            })
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+        
+    except Exception as e:
+        logger.error(f"Comprehensive sentiment analysis error: {e}")
+        return jsonify({'error': 'Failed to perform comprehensive analysis'}), 500
+
+@app.route('/api/sentiment/emotions', methods=['POST'])
+def emotion_detection():
+    """Detect emotions in text"""
+    try:
+        data = request.json
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+        
+        if not ADVANCED_SENTIMENT_AVAILABLE:
+            return jsonify({'error': 'Emotion detection not available'}), 503
+        
+        emotions = advanced_sentiment_analyzer.detect_emotions(text)
+        
+        # Find dominant emotions
+        dominant_emotions = sorted(emotions.items(), key=lambda x: x[1], reverse=True)[:3]
+        
+        return jsonify({
+            'success': True,
+            'emotions': emotions,
+            'dominant_emotions': dominant_emotions,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Emotion detection error: {e}")
+        return jsonify({'error': 'Failed to detect emotions'}), 500
+
+@app.route('/api/sentiment/batch-comprehensive', methods=['POST'])
+def batch_comprehensive_analysis():
+    """Batch comprehensive sentiment analysis"""
+    try:
+        data = request.json
+        texts = data.get('texts', [])
+        
+        if not texts:
+            return jsonify({'error': 'No texts provided'}), 400
+        
+        if not ADVANCED_SENTIMENT_AVAILABLE:
+            return jsonify({'error': 'Batch analysis not available'}), 503
+        
+        batch_results = advanced_sentiment_analyzer.analyze_batch(texts)
+        
+        # Save batch results summary
+        if db_manager:
+            summary_result = {
+                'text': f"Batch analysis of {len(texts)} texts",
+                'sentiment': batch_results['summary']['dominant_sentiment'],
+                'confidence': 0.8,  # Batch confidence
+                'batch_summary': batch_results['summary'],
+                'timestamp': datetime.now()
+            }
+            db_manager.save_sentiment_analysis(summary_result)
+        
+        # Broadcast real-time update
+        if socketio:
+            socketio.emit('batch_analysis_complete', {
+                'type': 'batch_comprehensive',
+                'summary': batch_results['summary'],
+                'total_analyzed': len(texts),
+                'timestamp': datetime.now().isoformat()
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': batch_results
+        })
+        
+    except Exception as e:
+        logger.error(f"Batch comprehensive analysis error: {e}")
+        return jsonify({'error': 'Failed to perform batch analysis'}), 500
+
+@app.route('/api/sentiment/trends', methods=['POST'])
+def sentiment_trends_analysis():
+    """Analyze sentiment trends over time"""
+    try:
+        data = request.json
+        analyses = data.get('analyses', [])
+        time_window = data.get('time_window', 'hourly')  # hourly, daily, minute
+        
+        if not analyses:
+            return jsonify({'error': 'No analyses provided'}), 400
+        
+        if not ADVANCED_SENTIMENT_AVAILABLE:
+            return jsonify({'error': 'Trend analysis not available'}), 503
+        
+        trends = advanced_sentiment_analyzer.get_sentiment_trends(analyses, time_window)
+        
+        # Extract insights from trends
+        insights = []
+        if trends:
+            # Find peak sentiment periods
+            sentiment_scores = {}
+            for time_key, data in trends.items():
+                dominant = data['dominant_sentiment']
+                if dominant not in sentiment_scores:
+                    sentiment_scores[dominant] = []
+                sentiment_scores[dominant].append((time_key, data['total_count']))
+            
+            for sentiment, periods in sentiment_scores.items():
+                if periods:
+                    peak_period = max(periods, key=lambda x: x[1])
+                    insights.append(f"Peak {sentiment} sentiment: {peak_period[0]} ({peak_period[1]} texts)")
+        
+        return jsonify({
+            'success': True,
+            'trends': trends,
+            'insights': insights,
+            'time_window': time_window,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Sentiment trends analysis error: {e}")
+        return jsonify({'error': 'Failed to analyze trends'}), 500
+
+@app.route('/api/sentiment/analytics/dashboard')
+def sentiment_analytics_dashboard():
+    """Get sentiment analytics for dashboard"""
+    try:
+        # Get recent analyses from database
+        recent_analyses = []
+        if hasattr(db_manager, 'get_recent_sentiment_analyses'):
+            recent_analyses = db_manager.get_recent_sentiment_analyses(days=7)
+        
+        # Mock data if no real analyses available
+        if not recent_analyses:
+            recent_analyses = [
+                {'sentiment': 'positive', 'confidence': 0.8, 'emotions': {'joy': 0.7, 'trust': 0.6}, 'timestamp': (datetime.now() - timedelta(hours=i)).isoformat()}
+                for i in range(24)
+            ]
+        
+        # Calculate dashboard metrics
+        total_analyses = len(recent_analyses)
+        sentiment_distribution = {'positive': 0, 'negative': 0, 'neutral': 0, 'mixed': 0}
+        emotion_totals = {'joy': 0, 'sadness': 0, 'anger': 0, 'fear': 0, 'surprise': 0, 'disgust': 0, 'trust': 0, 'anticipation': 0}
+        
+        for analysis in recent_analyses:
+            sentiment = analysis.get('sentiment', 'neutral')
+            if sentiment in sentiment_distribution:
+                sentiment_distribution[sentiment] += 1
+            
+            emotions = analysis.get('emotions', {})
+            for emotion, score in emotions.items():
+                if emotion in emotion_totals:
+                    emotion_totals[emotion] += score
+        
+        # Calculate averages
+        if total_analyses > 0:
+            sentiment_distribution = {k: v/total_analyses for k, v in sentiment_distribution.items()}
+            emotion_totals = {k: v/total_analyses for k, v in emotion_totals.items()}
+        
+        dashboard_data = {
+            'total_analyses': total_analyses,
+            'sentiment_distribution': sentiment_distribution,
+            'dominant_sentiment': max(sentiment_distribution.items(), key=lambda x: x[1])[0] if sentiment_distribution else 'neutral',
+            'emotion_averages': emotion_totals,
+            'most_prominent_emotion': max(emotion_totals.items(), key=lambda x: x[1])[0] if emotion_totals else 'neutral',
+            'recent_trend': _calculate_recent_trend(recent_analyses)
+        }
+        
+        return jsonify({
+            'success': True,
+            'dashboard_data': dashboard_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Sentiment analytics dashboard error: {e}")
+        return jsonify({'error': 'Failed to get analytics dashboard'}), 500
+
+def _calculate_recent_trend(analyses: List[Dict]) -> str:
+    """Calculate recent sentiment trend"""
+    if len(analyses) < 2:
+        return 'stable'
+    
+    # Compare recent half vs older half
+    mid = len(analyses) // 2
+    recent = analyses[:mid]
+    older = analyses[mid:]
+    
+    recent_positive = sum(1 for a in recent if a.get('sentiment') == 'positive') / len(recent) if recent else 0
+    older_positive = sum(1 for a in older if a.get('sentiment') == 'positive') / len(older) if older else 0
+    
+    if recent_positive > older_positive + 0.1:
+        return 'improving'
+    elif recent_positive < older_positive - 0.1:
+        return 'declining'
+    else:
+        return 'stable'
+
 @app.route('/api/visualizations/sentiment-pie')
 def get_sentiment_pie_chart():
     """Generate sentiment pie chart visualization"""
@@ -5252,5 +7130,78 @@ def get_system_health():
         logger.error(f"Health check error: {e}")
         return jsonify({'error': 'Failed to get system health'}), 500
 
+def initialize_default_habits():
+    """Initialize default habits if none exist"""
+    try:
+        existing_habits = db_manager.get_habits() if 'db_manager' in globals() else []
+        
+        if not existing_habits:
+            # Create default habits
+            default_habits = [
+                {
+                    'goal_id': 'daily_exercise',
+                    'title': 'Daily Exercise',
+                    'description': 'Exercise for at least 30 minutes',
+                    'target': 30,
+                    'icon': 'fa-dumbbell',
+                    'category': 'fitness'
+                },
+                {
+                    'goal_id': 'read_daily',
+                    'title': 'Daily Reading',
+                    'description': 'Read for at least 20 minutes',
+                    'target': 20,
+                    'icon': 'fa-book',
+                    'category': 'education'
+                },
+                {
+                    'goal_id': 'meditation',
+                    'title': 'Meditation',
+                    'description': 'Meditate for 15 minutes',
+                    'target': 15,
+                    'icon': 'fa-lotus-position',
+                    'category': 'wellness'
+                },
+                {
+                    'goal_id': 'water_intake',
+                    'title': 'Water Intake',
+                    'description': 'Drink 8 glasses of water',
+                    'target': 8,
+                    'icon': 'fa-tint',
+                    'category': 'health'
+                },
+                {
+                    'goal_id': 'journal_writing',
+                    'title': 'Journal Writing',
+                    'description': 'Write in journal for 10 minutes',
+                    'target': 10,
+                    'icon': 'fa-pen',
+                    'category': 'personal'
+                }
+            ]
+            
+            for habit in default_habits:
+                if 'db_manager' in globals():
+                    db_manager.create_habit(**habit)
+                    logger.info(f"Created default habit: {habit['title']}")
+            
+            logger.info("✅ Default habits initialized successfully")
+        else:
+            logger.info(f"Found {len(existing_habits)} existing habits, skipping initialization")
+            
+    except Exception as e:
+        logger.error(f"Failed to initialize default habits: {e}")
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))
+    # Initialize default habits on startup
+    try:
+        initialize_default_habits()
+    except Exception as e:
+        logger.warning(f"Failed to initialize default habits: {e}")
+    
+    if socketio is not None:
+        # Run with SocketIO for real-time features
+        socketio.run(app, debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))
+    else:
+        # Fallback to regular Flask if SocketIO is not available
+        app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5003)))

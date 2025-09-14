@@ -77,3 +77,4 @@ models/
 secrets/
 credentials/
 .env
+.env
